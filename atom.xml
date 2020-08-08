@@ -5,9 +5,9 @@
   
   <link href="/atom.xml" rel="self"/>
   
-  <link href="https://dannecron.bitbucket.io/"/>
-  <updated>2020-06-19T13:46:05.460Z</updated>
-  <id>https://dannecron.bitbucket.io/</id>
+  <link href="https://dannecron.github.io/"/>
+  <updated>2020-08-08T07:35:00.000Z</updated>
+  <id>https://dannecron.github.io/</id>
   
   <author>
     <name>Daniel Savosin</name>
@@ -17,9 +17,34 @@
   <generator uri="https://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>Использование traefik reverse proxy для упрощения локальной разработки множества web-сервисов</title>
+    <link href="https://dannecron.github.io/2020/08/08/traefik/"/>
+    <id>https://dannecron.github.io/2020/08/08/traefik/</id>
+    <published>2020-08-08T07:35:00.000Z</published>
+    <updated>2020-08-08T07:35:00.000Z</updated>
+    
+    <content type="html"><![CDATA[<p>Это небольшой пересказ с примерами конфигураций моего небольшого и спонтанного “воркшопа” про то, как я организовал своё локальное окружение для одновременной разработки n-ного количества web-сервисов.</p><a id="more"></a><h3 id="Предисловие"><a href="#Предисловие" class="headerlink" title="Предисловие"></a>Предисловие</h3><p>Пару лет назад, когда я только освоился с технологией docker, у меня был такой подход, что каждый сервис, с которым мне приходится работать через браузер или http client, занимает определённый порт на localhost. Это было больно по нескольким причинам:</p><ul><li>Необходимо точно помнить какие порты уже заняты, да ещё и помнить какой сервис занимает какой порт.</li><li>Для сайтов, работающих по доменным именам, в основном приходилось делать дополнительные записи в файл hosts.</li></ul><p>Всё это выливалось в постоянные телодвижения по конфигурации не только когда приходится настраивать окружение на свежеустановленной системе, но и даже при работе на системе, где уже всё настроено.</p><p>Да, это так критично, но всё-равно тратится время. Поэтому в конечном итоге я начал искать пути решения этой проблемы. Поиск по сайтам в google и в ответах на stackoverflow приносил мало результатов. Решения в основном заключались в настройке локального dns-сервера и статической или динамической его конфигурации. Решения эти были довольно сложными в реализации, да и ещё не было понимания, как это повлияет на ОС.</p><p>Так я и сидел, прокидывая порты на хост, решая конфликты и вспоминая четырёхзначные числа. Пока я не нашёл <a href="https://github.com/containous/traefik" target="_blank" rel="noopener"><code>traefik</code></a>, который позиционирует себя как “продвинутый HTTP reverse proxy и load balancer”. Первая часть меня зацепила, и, почитав документацию, я пришёл к выводу, что это идеальное решение проблемы, описанной выше.</p><h3 id="Использование-traefik"><a href="#Использование-traefik" class="headerlink" title="Использование traefik"></a>Использование traefik</h3><p>Я не буду вдаваться в глубокий разбор технологии реверсивного проксирования или самого traefik, просто расскажу, как конкретно он помогает в разработке и почему это удобно.</p><p>Первым шагом будет запуск traefik. Для простоты (а именно это приоритет в локальной разработке) всё буду делать через docker-compose и docker-compose.yml файлы. Таким образом, выделим директорию где-то на диске и начнём. У меня это директория <code>~/code/libs</code>. Создаём внутри неё новую директорию <code>traefik</code>.</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">cd</span> ~/code/libs</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> mkdir traefik</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">cd</span> traefik</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> touch docker-compose.yml</span></span><br></pre></td></tr></table></figure><p>Перейдя туда, начинаем описывать конфигурацию стека из одного сервиса:</p><figure class="highlight yaml"><figcaption><span>traefik/docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">'3.7'</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">traefik:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">traefik:2.2.8</span></span><br><span class="line">    <span class="attr">command:</span> <span class="string">--api.insecure=true</span> <span class="string">--providers.docker</span> <span class="string">--providers.docker.network=traefik_default</span> <span class="string">--providers.docker.exposedByDefault=false</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">80</span><span class="string">:80</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">8080</span><span class="string">:8080</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/var/run/docker.sock:/var/run/docker.sock:ro</span></span><br></pre></td></tr></table></figure><p>Немного о конфигурации. Порт <code>80</code> используется для непосредственных запросов в сервисы через traefik. На порту <code>8080</code> располагается небольшой dashboard с небольшим количеством информации для мониторинга. Том с сокетом докера необходимо добавить в контейнер, иначе traefik не сможет использовать провайдер докера. И немного по ключу <code>command</code>:</p><ul><li><code>--api.insecure=true</code> включаем доступ до dashboard</li><li><code>--providers.docker</code> включаем провайдер docker</li><li><code>--providers.docker.network=traefik_default</code> говорим traefik использовать только его дефолтную сеть для поиска сервисов, готовых к взаимодействию</li><li><code>--providers.docker.exposedByDefault=false</code> данный флаг отключает автоматическое подключение всех контейнеров к traefik. В противном случае, traefik будет пытаться создать прокси до всех сервисов, у которых открыт хотя бы один порт.</li></ul><p>Запускаем стек:</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> docker-compose up --build -d</span></span><br></pre></td></tr></table></figure><p>И проверим, что всё запустилось, перейдя в браузере по <code>http://localhost:8080</code>. Отобразится такая страница с dashboard.</p><figure class="article-gallery-img" itemprop="associatedMedia" itemscope itemtype="http://schema.org/ImageObject"><a href="/assets/20200808/dashboard.png" title=""><img src="/assets/20200808/dashboard.png" alt=""></a><figcaption class="caption"></figcaption></figure><p>Следующим шагом будет запуск какого-нибудь сервиса с web-интерфейсом. Для примера я взял ASW-S3 совместимое хранилище <a href="https://github.com/minio/minio" target="_blank" rel="noopener">minio</a>. Рядом с директорией <code>traefik</code> создадим директорию <code>minio</code>с файлом <code>docker-compose.yml</code> внутри:</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">cd</span> ..</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> mkdir minio</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">cd</span> minio</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> touch docker-compose.yml</span></span><br></pre></td></tr></table></figure><p>Базовая конфигурация этого сервиса через <code>docker-compose</code> будет выглядеть следующим образом:</p><figure class="highlight yaml"><figcaption><span>minio/docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">'3.7'</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">minio:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">minio/minio:RELEASE.2020-08-07T01-23-07Z</span></span><br><span class="line">    <span class="attr">expose:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">9000</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="attr">MINIO_ACCESS_KEY:</span> <span class="string">"foobarbaz1234"</span></span><br><span class="line">      <span class="attr">MINIO_SECRET_KEY:</span> <span class="string">"secret1234"</span></span><br><span class="line">    <span class="attr">command:</span> <span class="string">minio</span> <span class="string">--compat</span> <span class="string">server</span> <span class="string">/data</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./data:/data</span></span><br></pre></td></tr></table></figure><p>Теперь необходимо сделать так, чтобы <code>traefik</code> и <code>minio</code> смогли общаться между собой. Для этого в конец <code>minio/docker-compose.yml</code> добавляем сеть <code>traefik_default</code> как внешнюю. И сразу же скажем сервису <code>minio</code> использовать новую сеть. Конфигурация теперь будет иметь вид: </p><figure class="highlight yaml"><figcaption><span>minio/docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">'3.7'</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">minio:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">minio/minio:RELEASE.2020-08-07T01-23-07Z</span></span><br><span class="line">    <span class="attr">expose:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">9000</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="attr">MINIO_ACCESS_KEY:</span> <span class="string">"foobarbaz1234"</span></span><br><span class="line">      <span class="attr">MINIO_SECRET_KEY:</span> <span class="string">"secret1234"</span></span><br><span class="line">    <span class="attr">command:</span> <span class="string">minio</span> <span class="string">--compat</span> <span class="string">server</span> <span class="string">/data</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./data:/data</span></span><br><span class="line">    <span class="attr">networks:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">proxy</span> <span class="comment"># &lt;- добавили внешнюю сеть в сервис</span></span><br><span class="line"></span><br><span class="line"><span class="attr">networks:</span></span><br><span class="line">  <span class="attr">proxy:</span></span><br><span class="line">    <span class="attr">external:</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">traefik_default</span> <span class="comment"># &lt;- объявили внешнюю сеть</span></span><br></pre></td></tr></table></figure><p>Ну и наконец, собственно магия traefik. В сервис необходимо добавить три лейбла: </p><ul><li><code>traefik.enable=true</code>, чтобы сервис был включён в список конечных точек проксирования.</li><li><code>traefik.http.routers.&lt;serviceName&gt;.rule=Host(</code><hostName>.docker.localhost<code>)</code>, где <code>&lt;serviceName&gt;</code> нужно заменить на название сервиса, оно не обязательно должно совпадать с названием в <code>docker-compose.yml</code>, <code>&lt;hostName&gt;</code> нужно заменить на валидный поддомен. Валидность заключается в соблюдении правил построении доменных имён. </li><li><code>traefik.http.services.&lt;serviceName&gt;.loadbalancer.server.port=&lt;port&gt;</code> обязательно необходимо добавлять, если сервис слушает порт отличный от 80.</li></ul><p>Заключительный вид файла <code>minio/docker-compose.yml</code>:</p><figure class="highlight yaml"><figcaption><span>minio/docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">'3.7'</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">minio:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">minio/minio:RELEASE.2020-08-07T01-23-07Z</span></span><br><span class="line">    <span class="attr">expose:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">9000</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="attr">MINIO_ACCESS_KEY:</span> <span class="string">"foobarbaz1234"</span></span><br><span class="line">      <span class="attr">MINIO_SECRET_KEY:</span> <span class="string">"secret1234"</span></span><br><span class="line">    <span class="attr">command:</span> <span class="string">minio</span> <span class="string">--compat</span> <span class="string">server</span> <span class="string">/data</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./data:/data</span></span><br><span class="line">    <span class="attr">networks:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">proxy</span></span><br><span class="line">    <span class="attr">labels:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">"traefik.enable=true"</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">"traefik.http.routers.minio.rule=Host(`minio.docker.localhost`)"</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">"traefik.http.services.minio.loadbalancer.server.port=9000"</span></span><br><span class="line"></span><br><span class="line"><span class="attr">networks:</span></span><br><span class="line">  <span class="attr">proxy:</span></span><br><span class="line">    <span class="attr">external:</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">traefik_default</span></span><br></pre></td></tr></table></figure><p>Запустим контейнер с <code>minio</code></p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> docker-compose up --build -d</span></span><br></pre></td></tr></table></figure><p>Теперь достаточно перейти по url <code>http://minio.docker.localhost</code> и убедиться, что всё работает.</p><figure class="article-gallery-img" itemprop="associatedMedia" itemscope itemtype="http://schema.org/ImageObject"><a href="/assets/20200808/minio.docker.localhost.png" title=""><img src="/assets/20200808/minio.docker.localhost.png" alt=""></a><figcaption class="caption"></figcaption></figure><p>Вот таким образом можно без каких-либо проблем задавать доступность сервисов по доменному имени в домене <code>*.docker.localhost</code> на локальной машине. Дополнительно traefik предоставляет гибкую настройку множества параметров, в том числе и https, а также поддерживает работу не только с обычными контейнерами <code>docker</code>, запускаемыми через <code>docker run</code> или <code>docker-compose</code>, но и <code>docker swarm</code>, и <code>kubernetes</code>.</p><link rel="stylesheet" href="/css/spoiler.css" type="text/css"><script src="/js/spoiler.js" type="text/javascript" async></script>]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;Это небольшой пересказ с примерами конфигураций моего небольшого и спонтанного “воркшопа” про то, как я организовал своё локальное окружение для одновременной разработки n-ного количества web-сервисов.&lt;/p&gt;
+    
+    </summary>
+    
+    
+    
+      <category term="programming" scheme="https://dannecron.github.io/tags/programming/"/>
+    
+      <category term="traefik" scheme="https://dannecron.github.io/tags/traefik/"/>
+    
+      <category term="minio" scheme="https://dannecron.github.io/tags/minio/"/>
+    
+  </entry>
+  
+  <entry>
     <title>Мнение Gibbous - A Cthulhu Adventure</title>
-    <link href="https://dannecron.bitbucket.io/2020/04/07/gibbous/"/>
-    <id>https://dannecron.bitbucket.io/2020/04/07/gibbous/</id>
+    <link href="https://dannecron.github.io/2020/04/07/gibbous/"/>
+    <id>https://dannecron.github.io/2020/04/07/gibbous/</id>
     <published>2020-04-06T17:00:00.000Z</published>
     <updated>2020-06-19T13:46:05.460Z</updated>
     
@@ -39,20 +64,20 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="pc" scheme="https://dannecron.bitbucket.io/tags/pc/"/>
+      <category term="pc" scheme="https://dannecron.github.io/tags/pc/"/>
     
-      <category term="steam" scheme="https://dannecron.bitbucket.io/tags/steam/"/>
+      <category term="steam" scheme="https://dannecron.github.io/tags/steam/"/>
     
   </entry>
   
   <entry>
     <title>Мнение Final Fantasy VII Remake Demo</title>
-    <link href="https://dannecron.bitbucket.io/2020/03/08/ffviird/"/>
-    <id>https://dannecron.bitbucket.io/2020/03/08/ffviird/</id>
+    <link href="https://dannecron.github.io/2020/03/08/ffviird/"/>
+    <id>https://dannecron.github.io/2020/03/08/ffviird/</id>
     <published>2020-03-07T17:00:00.000Z</published>
     <updated>2020-06-19T13:46:05.460Z</updated>
     
@@ -66,18 +91,18 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="ps4" scheme="https://dannecron.bitbucket.io/tags/ps4/"/>
+      <category term="ps4" scheme="https://dannecron.github.io/tags/ps4/"/>
     
   </entry>
   
   <entry>
     <title>Мнение Sudeki</title>
-    <link href="https://dannecron.bitbucket.io/2020/02/16/sudeki/"/>
-    <id>https://dannecron.bitbucket.io/2020/02/16/sudeki/</id>
+    <link href="https://dannecron.github.io/2020/02/16/sudeki/"/>
+    <id>https://dannecron.github.io/2020/02/16/sudeki/</id>
     <published>2020-02-15T17:00:00.000Z</published>
     <updated>2020-06-19T13:46:05.460Z</updated>
     
@@ -97,20 +122,20 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="pc" scheme="https://dannecron.bitbucket.io/tags/pc/"/>
+      <category term="pc" scheme="https://dannecron.github.io/tags/pc/"/>
     
-      <category term="steam" scheme="https://dannecron.bitbucket.io/tags/steam/"/>
+      <category term="steam" scheme="https://dannecron.github.io/tags/steam/"/>
     
   </entry>
   
   <entry>
     <title>Мнение Final Fantasy 7</title>
-    <link href="https://dannecron.bitbucket.io/2020/02/07/final_fantasy_7/"/>
-    <id>https://dannecron.bitbucket.io/2020/02/07/final_fantasy_7/</id>
+    <link href="https://dannecron.github.io/2020/02/07/final_fantasy_7/"/>
+    <id>https://dannecron.github.io/2020/02/07/final_fantasy_7/</id>
     <published>2020-02-06T17:00:00.000Z</published>
     <updated>2020-06-19T13:46:05.460Z</updated>
     
@@ -130,20 +155,20 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="pc" scheme="https://dannecron.bitbucket.io/tags/pc/"/>
+      <category term="pc" scheme="https://dannecron.github.io/tags/pc/"/>
     
-      <category term="steam" scheme="https://dannecron.bitbucket.io/tags/steam/"/>
+      <category term="steam" scheme="https://dannecron.github.io/tags/steam/"/>
     
   </entry>
   
   <entry>
     <title>Мнение серия Steins;Gate</title>
-    <link href="https://dannecron.bitbucket.io/2020/01/05/steins_gate_series/"/>
-    <id>https://dannecron.bitbucket.io/2020/01/05/steins_gate_series/</id>
+    <link href="https://dannecron.github.io/2020/01/05/steins_gate_series/"/>
+    <id>https://dannecron.github.io/2020/01/05/steins_gate_series/</id>
     <published>2020-01-04T17:00:00.000Z</published>
     <updated>2020-06-19T13:46:05.460Z</updated>
     
@@ -157,20 +182,20 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="pc" scheme="https://dannecron.bitbucket.io/tags/pc/"/>
+      <category term="pc" scheme="https://dannecron.github.io/tags/pc/"/>
     
-      <category term="steam" scheme="https://dannecron.bitbucket.io/tags/steam/"/>
+      <category term="steam" scheme="https://dannecron.github.io/tags/steam/"/>
     
   </entry>
   
   <entry>
     <title>Мнение Yuppie Psycho</title>
-    <link href="https://dannecron.bitbucket.io/2019/11/27/yuppie_spycho/"/>
-    <id>https://dannecron.bitbucket.io/2019/11/27/yuppie_spycho/</id>
+    <link href="https://dannecron.github.io/2019/11/27/yuppie_spycho/"/>
+    <id>https://dannecron.github.io/2019/11/27/yuppie_spycho/</id>
     <published>2019-11-26T17:00:00.000Z</published>
     <updated>2020-06-19T13:46:05.460Z</updated>
     
@@ -190,20 +215,20 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="pc" scheme="https://dannecron.bitbucket.io/tags/pc/"/>
+      <category term="pc" scheme="https://dannecron.github.io/tags/pc/"/>
     
-      <category term="steam" scheme="https://dannecron.bitbucket.io/tags/steam/"/>
+      <category term="steam" scheme="https://dannecron.github.io/tags/steam/"/>
     
   </entry>
   
   <entry>
     <title>Danganronpa v3</title>
-    <link href="https://dannecron.bitbucket.io/2018/08/27/danganronpa_v3/"/>
-    <id>https://dannecron.bitbucket.io/2018/08/27/danganronpa_v3/</id>
+    <link href="https://dannecron.github.io/2018/08/27/danganronpa_v3/"/>
+    <id>https://dannecron.github.io/2018/08/27/danganronpa_v3/</id>
     <published>2018-08-26T17:00:00.000Z</published>
     <updated>2020-06-19T13:46:05.460Z</updated>
     
@@ -218,22 +243,22 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="pc" scheme="https://dannecron.bitbucket.io/tags/pc/"/>
+      <category term="pc" scheme="https://dannecron.github.io/tags/pc/"/>
     
-      <category term="steam" scheme="https://dannecron.bitbucket.io/tags/steam/"/>
+      <category term="steam" scheme="https://dannecron.github.io/tags/steam/"/>
     
-      <category term="psp" scheme="https://dannecron.bitbucket.io/tags/psp/"/>
+      <category term="psp" scheme="https://dannecron.github.io/tags/psp/"/>
     
   </entry>
   
   <entry>
     <title>Electronic Entertainment Expo Part 2</title>
-    <link href="https://dannecron.bitbucket.io/2018/06/11/e3_day2/"/>
-    <id>https://dannecron.bitbucket.io/2018/06/11/e3_day2/</id>
+    <link href="https://dannecron.github.io/2018/06/11/e3_day2/"/>
+    <id>https://dannecron.github.io/2018/06/11/e3_day2/</id>
     <published>2018-06-10T17:00:00.000Z</published>
     <updated>2018-06-11T07:22:00.000Z</updated>
     
@@ -248,18 +273,18 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="e3" scheme="https://dannecron.bitbucket.io/tags/e3/"/>
+      <category term="e3" scheme="https://dannecron.github.io/tags/e3/"/>
     
   </entry>
   
   <entry>
     <title>Electronic Entertainment Expo Part 1</title>
-    <link href="https://dannecron.bitbucket.io/2018/06/10/e3_day1/"/>
-    <id>https://dannecron.bitbucket.io/2018/06/10/e3_day1/</id>
+    <link href="https://dannecron.github.io/2018/06/10/e3_day1/"/>
+    <id>https://dannecron.github.io/2018/06/10/e3_day1/</id>
     <published>2018-06-09T17:00:00.000Z</published>
     <updated>2018-06-10T15:52:00.000Z</updated>
     
@@ -274,42 +299,11 @@
     
     
     
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
+      <category term="review" scheme="https://dannecron.github.io/tags/review/"/>
     
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
+      <category term="games" scheme="https://dannecron.github.io/tags/games/"/>
     
-      <category term="e3" scheme="https://dannecron.bitbucket.io/tags/e3/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Серия Danganronpa</title>
-    <link href="https://dannecron.bitbucket.io/2018/06/03/danganronpa/"/>
-    <id>https://dannecron.bitbucket.io/2018/06/03/danganronpa/</id>
-    <published>2018-06-02T17:00:00.000Z</published>
-    <updated>2018-06-04T15:30:35.000Z</updated>
-    
-    <content type="html"><![CDATA[<p>Скорее всего, если человек не увлекается аниме или визуальными новеллами, то он может не знать о существовании этой великолепной серии игр. Начнём с простого, а именно с цитат с вики: </p><blockquote><p>Danganronpa - японская серия визуальных новелл, написанная Кадзутакой Кодакой и с дизайнами персонажей от Руи Комацузаки, издаваемая Spike Chunsoft с 2010 года. </p><footer><strong>Wikia</strong><cite><a href="http://ru.danganronpa.wikia.com/wiki/Danganronpa_wiki" target="_blank" rel="noopener">Index Page</a></cite></footer></blockquote><a id="more"></a><p>А продолжу я наверное с блока tl;dr, ибо текста получается очень много.</p><div class="spoiler collapsed">    <div class="spoiler-title">        tl;dr    </div>    <div class="spoiler-content">        <p>Вся серия очень годная и стоит хотя бы попробовать поиграть в первую часть.</p><p><code>Danganronpa: Trigger Happy Havoc</code> рекомендую в первую очередь тем, кто любит детективы, аниме, визуальные новеллы и все их производные.</p><p>С <code>Danganronpa 2: Goodbye Despair</code> всё намного проще. Понравилась первая часть? Вперёд за второй.</p><p><code>Danganronpa Another Episode: Ultra Despair Girls</code> - это спин-офф, который расширяет вселенную и дополняет некоторые аспекты мира Danganronpa. Но вот советовать это произведение я рискну только фанатам серии, которые прошли первые две части.</p>    </div></div><h4 id="Danganronpa-Trigger-Happy-Havoc"><a href="#Danganronpa-Trigger-Happy-Havoc" class="headerlink" title="Danganronpa: Trigger Happy Havoc"></a>Danganronpa: Trigger Happy Havoc</h4><p>Первое моё знакомство с серией <code>Danganronpa</code> началось в 2014 году с, собственно, первой части. Играл я в неё на “арендованной” у знакомых PSP. И это было потрясающе. Игра идеально подходила для этой портативной консоли: удобное управление, необычный визуальный стиль окружения с персонажами, нарисованными в традиционном аниме-стиле, геймплей варьирующийся от размеренного прочтения диалогов до достаточно динамичных мини-игр. В общем, в плане взаимодействия с игроком <code>Danganronpa</code> на PSP оставила очень тёплые воспоминания.</p><p>И вот, в феврале 2016-ого игра выходит в Steam. И порт получился удачным, вот только главный экран с не очень качественным фоновым звуком позволяет понять, что это порт с портативной консоли прошлого поколения. В остальном всё выглядит достойно на FullHD.</p><p>Геймплейно, как я уже упоминал, игра представляет собой некую смесь жанров. В основе лежит стандартная визуальная новелла “читай-кликай-читай дальше”. Вторая часть геймплея является поиск улик, которая была позаимствована, как мне показалось, прямиком из серии игр <code>Ace Attorney</code>, но с менее хардкорным подходом. Третья часть - это Class Trial, этакий “суд”, состоящий из нескольких мини-игр на логику и, в некоторых случаях, на реакцию. На самом деле, Class Trial так же был вдохновлён играми о Фениксе Райте, но в отличие от поиска улик, тут много больше оригинальных подходов.</p><p>Сюжет… Ну он крут, он будет держать в напряжении до самого конца и даже больше. По факту, сказать про сюжет что-то внятное и не спойлернув очень сложно. Можно только сказать, что мир <code>Danganronpa</code> - это фарс, в котором практически все темы, которых коснулись в игре, были доведены до абсурда. Но сделано это настолько аккуратно, что не вызывает никаких негативных эмоций. Так же свой вклад в развитие сюжета вносят и персонажи: яркие, харизматичные и такие же абсурдно совершенные, ибо они Ultimates.</p><p>По итогу первая <code>Danganronpa</code> - это годный аниме-детектив с интересным сюжетом, множеством plot-twist’ов, затягивающим геймплеем и хорошей проработкой деталей. Если нравится хоть что-нибудь из вышеперечисленного, то must play, иначе можно просто взять на заметку.</p><h4 id="Danganronpa-2-Goodbye-Despair"><a href="#Danganronpa-2-Goodbye-Despair" class="headerlink" title="Danganronpa 2: Goodbye Despair"></a>Danganronpa 2: Goodbye Despair</h4><p>Во вторую часть серии я играл только в Steam, хотя изначально она выходила на PSP, а затем на PS Vita. Но своих портативных консолей у меня не завелось, поэтому так. Ну и ещё потому что вне Японии и с переводом игра вышла только в 2016 году, до этого перевод хотя бы на английский было не найти.</p><p>Собственно, <code>Danganronpa 2</code> - это первая часть на стероидах. Разработчики смогли улучшить то, что и так было хорошо. Стало ещё больше сюжетных поворотов, при этом ещё более непредсказуемый сюжет. Стало ещё больше странных и откровенно абсурдных персонажей. Ещё больше запутывающих ситуаций. Ещё больше всего и вся. Но это не тот случай, когда “You are carrying too much to be able to run”(c). Как раз наоборот, всё, что было добавлено в игру, сделало её только лучше.</p><p>Ну тут говорить больше и нечего. Нравится первая <code>Danganronpa</code>? Вторая зайдёт на ура. Без первой играть во вторую нет смысла.</p><h4 id="Danganronpa-Another-Episode-Ultra-Despair-Girls"><a href="#Danganronpa-Another-Episode-Ultra-Despair-Girls" class="headerlink" title="Danganronpa Another Episode: Ultra Despair Girls"></a>Danganronpa Another Episode: Ultra Despair Girls</h4><p>Спин-офф, который сначала выпущен для модной на тот момент PS Vita, а затем добравшийся до PS4 и Steam. В последнем я и преобрёл данное произведение.</p><p>Со спин-оффами почти всегда творится всякое непотребство: то разработчики молодые и неопытные наделают кучу багов, что играть невозможно, то сценаристы почувствуют власть и начнут класть болты на лор или, не приведи рандом, на канон, то ещё какая-нибудь беда произойдёт. Короче, спин-оффы - это, в больше своём, расстройства чистой воды.</p><p>Но не в случае с <code>Danganronpa Another Episode</code>. Сюжетно - это прекрасное ответвление истории, которое не просто расширяет мир серии, но и дополняет его новыми фактами, которые хорошо сочетаются с основным сюжетом. Ещё прекрасно прописаны основные персонажи, которые, однако, раскрываются и блистают только ближе к апогею истории.</p><p>Геймплейно игра представляет собой жесткое инди, в котором сплелись визуальная новелла, экшн от третьего лица и платформер с головоломками в стиле каких-нибудь <code>Psychonauts</code>. И не могу сказать, что это прям хороший сплав. Проблема гейплея в его однообразии - ходи себе по локациям (причём по несколько раз за игру), стреляй в монокум, решай не сложные головоломки. Управление, заточенное под портативную консоль, так же не добавляет плюсов. Основная боль - это камера, тут и повернуть персонажа нормально не получается и прицелится из пушки-рупора будет сложно.</p><p>Вот и держится игра исключительно на сюжете, крутых роликах в том самом уникальном стиле <code>Danganronpa</code>, хорошем саунде и персонажах. Но именно поэтому можно простить огрехи разработчиков в геймплейной составляющей и сказать, что <code>Danganronpa Another Episode</code> - это прекрасный подарок фанатам серии. Но вот людям, отдалённым от первых двух частей, будет откровенно скучно, ибо это спин-офф и без контекста основной серии мало что будет понятно, а гейплей не вывозит.</p><link rel="stylesheet" href="/css/spoiler.css" type="text/css"><script src="/js/spoiler.js" type="text/javascript" async></script>]]></content>
-    
-    <summary type="html">
-    
-      &lt;p&gt;Скорее всего, если человек не увлекается аниме или визуальными новеллами, то он может не знать о существовании этой великолепной серии игр. Начнём с простого, а именно с цитат с вики: &lt;/p&gt;
-&lt;blockquote&gt;&lt;p&gt;Danganronpa - японская серия визуальных новелл, написанная Кадзутакой Кодакой и с дизайнами персонажей от Руи Комацузаки, издаваемая Spike Chunsoft с 2010 года. &lt;/p&gt;
-&lt;footer&gt;&lt;strong&gt;Wikia&lt;/strong&gt;&lt;cite&gt;&lt;a href=&quot;http://ru.danganronpa.wikia.com/wiki/Danganronpa_wiki&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;Index Page&lt;/a&gt;&lt;/cite&gt;&lt;/footer&gt;&lt;/blockquote&gt;
-    
-    </summary>
-    
-    
-    
-      <category term="review" scheme="https://dannecron.bitbucket.io/tags/review/"/>
-    
-      <category term="games" scheme="https://dannecron.bitbucket.io/tags/games/"/>
-    
-      <category term="pc" scheme="https://dannecron.bitbucket.io/tags/pc/"/>
-    
-      <category term="steam" scheme="https://dannecron.bitbucket.io/tags/steam/"/>
-    
-      <category term="psp" scheme="https://dannecron.bitbucket.io/tags/psp/"/>
+      <category term="e3" scheme="https://dannecron.github.io/tags/e3/"/>
     
   </entry>
   
