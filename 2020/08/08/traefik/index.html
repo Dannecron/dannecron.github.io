@@ -257,7 +257,7 @@
 <p>И проверим, что всё запустилось, перейдя в браузере по <code>http://localhost:8080</code>. Отобразится такая страница с dashboard.</p>
 <figure class="article-gallery-img" itemprop="associatedMedia" itemscope itemtype="http://schema.org/ImageObject"><a href="/assets/20200808/dashboard.png" title=""><img src="/assets/20200808/dashboard.png" alt=""></a><figcaption class="caption"></figcaption></figure>
 
-<p>Следующим шагом будет запуск какого-нибудь сервиса с web-интерфейсом. Для примера я взял ASW-S3 совместимое хранилище <a href="https://github.com/minio/minio" target="_blank" rel="noopener">minio</a>. Рядом с директорией <code>traefik</code> создадим директорию <code>minio</code>с файлом <code>docker-compose.yml</code> внутри:</p>
+<p>Следующим шагом будет запуск какого-нибудь сервиса с web-интерфейсом. Для примера я взял AWS-S3 совместимое хранилище <a href="https://github.com/minio/minio" target="_blank" rel="noopener">minio</a>. Рядом с директорией <code>traefik</code> создадим директорию <code>minio</code>с файлом <code>docker-compose.yml</code> внутри:</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">cd</span> ..</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> mkdir minio</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">cd</span> minio</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> touch docker-compose.yml</span></span><br></pre></td></tr></table></figure>
 
 <p>Базовая конфигурация этого сервиса через <code>docker-compose</code> будет выглядеть следующим образом:</p>
@@ -269,7 +269,8 @@
 <p>Ну и наконец, собственно магия traefik. В сервис необходимо добавить три лейбла: </p>
 <ul>
 <li><code>traefik.enable=true</code>, чтобы сервис был включён в список конечных точек проксирования.</li>
-<li><code>traefik.http.routers.&lt;serviceName&gt;.rule=Host(</code><hostName>.docker.localhost<code>)</code>, где <code>&lt;serviceName&gt;</code> нужно заменить на название сервиса, оно не обязательно должно совпадать с названием в <code>docker-compose.yml</code>, <code>&lt;hostName&gt;</code> нужно заменить на валидный поддомен. Валидность заключается в соблюдении правил построении доменных имён. </li>
+<li>  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">traefik.http.routers.&lt;serviceName&gt;.rule&#x3D;Host(&#96;&lt;hostName&gt;.docker.localhost&#96;)</span><br></pre></td></tr></table></figure>
+  где <code>&lt;serviceName&gt;</code> нужно заменить на название сервиса, оно не обязательно должно совпадать с названием в <code>docker-compose.yml</code>, <code>&lt;hostName&gt;</code> нужно заменить на валидный поддомен. Валидность заключается в соблюдении правил построении доменных имён. </li>
 <li><code>traefik.http.services.&lt;serviceName&gt;.loadbalancer.server.port=&lt;port&gt;</code> обязательно необходимо добавлять, если сервис слушает порт отличный от 80.</li>
 </ul>
 <p>Заключительный вид файла <code>minio/docker-compose.yml</code>:</p>
