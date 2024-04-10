@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+
+
+<title>
+  
+    Развёртывание статичного блога с использованием hexo
+  
+</title>
+
+<meta name="description" content="Собственно, нашел прекрасную библиотеку для простой генерации и развёртывания статического сайта. Имя этой библиотеки hexo. Без лишних слов опишу процесс создания блога с её использованием. Небольшое">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Развёртывание статичного блога с использованием hexo">
+<meta property="og:url" content="https://dannecron.github.io/2018/04/30/blog-on-hexo/index.html">
+<meta property="og:site_name" content="SAO-blog">
+<meta property="og:description" content="Собственно, нашел прекрасную библиотеку для простой генерации и развёртывания статического сайта. Имя этой библиотеки hexo. Без лишних слов опишу процесс создания блога с её использованием. Небольшое">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2018-04-30T13:00:15.000Z">
+<meta property="article:modified_time" content="2018-04-30T13:45:29.000Z">
+<meta property="article:author" content="Daniel Savosin">
+<meta property="article:tag" content="programming">
+<meta property="article:tag" content="javascript">
+<meta property="article:tag" content="markdown">
+<meta name="twitter:card" content="summary">
+
+
+  <link rel="alternative" href="/atom.xml" title="SAO-blog" type="application/atom+xml">
+
+
+
+  <link rel="icon" href="/assets/favicon.ico">
+
+
+
+<link rel="stylesheet" href="/perfect-scrollbar/css/perfect-scrollbar.min.css">
+
+
+<link rel="stylesheet" href="/styles/main.css">
+
+
+
+
+
+
+
+<style type="text/css">
+.spoiler {
+  display: inline-flex;
+}
+p.spoiler {
+  display: flex;
+}
+.spoiler a {
+  pointer-events: none;
+}
+.spoiler-blur, .spoiler-blur > * {
+  transition: text-shadow .5s ease;
+}
+.spoiler .spoiler-blur, .spoiler .spoiler-blur > * {
+  color: rgba(0, 0, 0, 0);
+  background-color: rgba(0, 0, 0, 0);
+  text-shadow: 0 0 10px grey;
+  cursor: pointer;
+}
+.spoiler .spoiler-blur:hover, .spoiler .spoiler-blur:hover > * {
+  text-shadow: 0 0 5px grey;
+}
+.spoiler-box, .spoiler-box > * {
+  transition: color .5s ease,
+  background-color .5s ease;
+}
+.spoiler .spoiler-box, .spoiler .spoiler-box > * {
+  color: black;
+  background-color: black;
+  text-shadow: none;
+}</style><meta name="generator" content="Hexo 6.3.0"></head>
+<body
+  
+  >
+  <div class="mobile-header">
+  <button class="sidebar-toggle" type="button">
+    <span class="icon-bar"></span>
+    <span class="icon-bar"></span>
+    <span class="icon-bar"></span>
+  </button>
+  <a class="title" href="/">SAO-blog</a>
+</div>
+
+  <div class="main-container">
+    <div class="sidebar">
+  <div class="header">
+    <h1 class="title"><a href="/">SAO-blog</a></h1>
+    
+    <div class="info">
+      <div class="content">
+        
+          <div class="description">blog about something and nothing</div>
+        
+        
+          <div class="author">Daniel Savosin</div>
+        
+      </div>
+      
+        <div class="avatar">
+          
+            <a href="/about"><img src="/avatar.png"></a>
+          
+        </div>
+      
+    </div>
+  </div>
+  <div class="body">
+    
+      
+        <ul class="nav">
+          
+            
+              <li>
+                <a href="/" title="Homepage" external="false">Homepage</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="/about" title="About" external="false">About</a>
+              </li>
+            
+          
+            
+              <li class="archive-list-container">
+                <a href="javascript:;">Archive</a>
+                <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/">2024</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/">2023</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/">2022</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/">2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/">2020</a><span class="archive-list-count">8</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/">2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/">2018</a><span class="archive-list-count">7</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/">2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/">2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/">2015</a><span class="archive-list-count">10</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/">2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/">2013</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2012/">2012</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2011/">2011</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2010/">2010</a><span class="archive-list-count">19</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2009/">2009</a><span class="archive-list-count">48</span></li></ul>
+              </li>
+            
+          
+            
+              <li class="category-list-container">
+                <a href="javascript:;">Category</a>
+                <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/memo/">memo</a><span class="category-list-count">71</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/programming/">programming</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/review/">review</a><span class="category-list-count">45</span></li></ul>
+              </li>
+            
+          
+            
+              <li class="tag-list-container">
+                <a href="javascript:;">Tag</a>
+                <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/adolescence/" rel="tag">adolescence</a><span class="tag-list-count">72</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/amv/" rel="tag">amv</a><span class="tag-list-count">6</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/android/" rel="tag">android</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/anime/" rel="tag">anime</a><span class="tag-list-count">8</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/book/" rel="tag">book</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/docker/" rel="tag">docker</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/e3/" rel="tag">e3</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/games/" rel="tag">games</a><span class="tag-list-count">37</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/imdb/" rel="tag">imdb</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/javascript/" rel="tag">javascript</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/lyrics/" rel="tag">lyrics</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mal/" rel="tag">mal</a><span class="tag-list-count">4</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/manga/" rel="tag">manga</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/markdown/" rel="tag">markdown</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/minio/" rel="tag">minio</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/movie/" rel="tag">movie</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/music/" rel="tag">music</a><span class="tag-list-count">4</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/origin/" rel="tag">origin</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/pc/" rel="tag">pc</a><span class="tag-list-count">34</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/photoshop/" rel="tag">photoshop</a><span class="tag-list-count">5</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/play-market/" rel="tag">play market</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/programming/" rel="tag">programming</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ps4/" rel="tag">ps4</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/psp/" rel="tag">psp</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/review/" rel="tag">review</a><span class="tag-list-count">44</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/review-game-vk/" rel="tag">review - game - vk</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/slice-of-life/" rel="tag">slice of life</a><span class="tag-list-count">59</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/steam/" rel="tag">steam</a><span class="tag-list-count">32</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/traefik/" rel="tag">traefik</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vk/" rel="tag">vk</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vpn/" rel="tag">vpn</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows-store/" rel="tag">windows store</a><span class="tag-list-count">1</span></li></ul>
+              </li>
+            
+          
+        </ul>
+      
+        <ul class="nav">
+          
+            
+              <li>
+                <a href="https://steamcommunity.com/id/dannc" title="Steam" target="_blank" rel="noopener">Steam</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://my.playstation.com/profile/DanNecron" title="PSN" target="_blank" rel="noopener">PSN</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://instagram.com/dannecron?igshid=NGVhN2U2NjQ0Yg==" title="Instagram" target="_blank" rel="noopener">Instagram</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://twitter.com/dannecron" title="Twitter" target="_blank" rel="noopener">Twitter</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://myanimelist.net/profile/DanNC" title="MyAnimeList" target="_blank" rel="noopener">MyAnimeList</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://www.last.fm/ru/user/DanNecron" title="LastFM" target="_blank" rel="noopener">LastFM</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://www.livelib.ru/reader/DanNC" title="LiveLib" target="_blank" rel="noopener">LiveLib</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://github.com/dannecron" title="Github" target="_blank" rel="noopener">Github</a>
+              </li>
+            
+          
+        </ul>
+      
+        <ul class="nav">
+          
+            
+              <li>
+                <a href="/atom.xml" title="RSS feed" external="false">RSS feed</a>
+              </li>
+            
+          
+        </ul>
+      
+        <ul class="nav">
+          
+            
+              <li>
+                <a href="https://github.com/denjones/hexo-theme-chan" title="based on Chan-theme" target="_blank" rel="noopener">based on Chan-theme</a>
+              </li>
+            
+          
+        </ul>
+      
+    
+  </div>
+</div>
+
+    <div class="main-content">
+      
+        <div style="max-width: 1000px">
+      
+          <article id="post-blog-on-hexo" class="article article-type-post">
+  
+    <h1 class="article-header">
+      Развёртывание статичного блога с использованием hexo
+    </h1>
+  
+  
+
+  <div class="article-info">
+    <span class="article-date">
+  2018-04-30
+</span>
+
+    
+	<span class="article-category tagcloud">
+	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/programming/">programming</a></li></ul>
+	</span>
+
+
+    
+	<span class="article-tag tagcloud">
+		<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/javascript/" rel="tag">javascript</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/markdown/" rel="tag">markdown</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/programming/" rel="tag">programming</a></li></ul>
+	</span>
+
+
+  </div>
+  <div class="article-entry">
+    <p>Собственно, нашел прекрасную библиотеку для простой генерации и развёртывания статического сайта. Имя этой библиотеки <a target="_blank" rel="noopener" href="https://hexo.io/">hexo</a>. Без лишних слов опишу процесс создания блога с её использованием.</p>
+<h4 id="Небольшое-предисловие"><a href="#Небольшое-предисловие" class="headerlink" title="Небольшое предисловие."></a>Небольшое предисловие.</h4><p>Все действия производил на windows 10 с использованием <code>git bash</code> заместо <code>powershell</code>, но на linux это всё заведётся ещё быстрее. Так же все действия свободно можно автоматизировать с использованием docker.</p>
+<h4 id="А-что-же-нужно"><a href="#А-что-же-нужно" class="headerlink" title="А что же нужно?"></a>А что же нужно?</h4><p>Немного. Нужна машина с git на борту и возможностью использовать npm. Нужна консоль, куда без неё. Нужен аккаунт на <a target="_blank" rel="noopener" href="https://github.com/">github</a> или <a target="_blank" rel="noopener" href="https://bitbucket.org/">bitbucket</a> Ну и знание языка разметки <a target="_blank" rel="noopener" href="https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet">markdown</a>.<br>На самом деле, последнее даже не обязательно, так как есть всякие wysiwyg-редакторы (например <a target="_blank" rel="noopener" href="https://stackedit.io/">stackedit</a>).</p>
+<span id="more"></span>
+
+<h3 id="Шаг-1-установка-nodejs-и-npm"><a href="#Шаг-1-установка-nodejs-и-npm" class="headerlink" title="Шаг 1 установка nodejs и npm"></a>Шаг 1 установка nodejs и npm</h3><p>Без них окружение javascript уже не живёт ни в каком виде. Не буду развивать тему про установку, просто скажу, что брать версию приложений лучше поновее, а необходимую инфу можно найти <a target="_blank" rel="noopener" href="https://nodejs.org/en/download/">здесь</a>.</p>
+<h3 id="Шаг-2-установка-hexo-cli"><a href="#Шаг-2-установка-hexo-cli" class="headerlink" title="Шаг 2 установка hexo-cli"></a>Шаг 2 установка hexo-cli</h3><p>Здесь два варианта действий:</p>
+<ol>
+<li>установить глобально и не запариваться <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install -g hexo-cli</span><br></pre></td></tr></table></figure></li>
+<li>Заморочится и, взяв за основу <a target="_blank" rel="noopener" href="https://hexo.io/docs/setup.html">package.json из официальной документации</a>, “курить маны” и самостоятельно набрасывать каркас приложения.<br>Я пошёл по пути наименьшего сопротивления, чего и всем желаю <em>(наверное)</em>.</li>
+</ol>
+<h3 id="Шаг-3-инициализация-проекта"><a href="#Шаг-3-инициализация-проекта" class="headerlink" title="Шаг 3 инициализация проекта"></a>Шаг 3 инициализация проекта</h3><p>Вся необходимая структура проекта создаётся командой</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo init my_awesome_blog</span><br></pre></td></tr></table></figure>
+
+<p>После нужно подтянуть зависимости</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install</span><br></pre></td></tr></table></figure>
+
+<p>Ну и наконец запустим локальный сервер, чтобы убедиться, что всё установилось без проблем.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo server</span><br></pre></td></tr></table></figure>
+
+<p>В консоли будет следующий вывод</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">INFO  Start processing</span><br><span class="line">INFO  Hexo is running at http://localhost:4000/. Press Ctrl+C to stop.</span><br></pre></td></tr></table></figure>
+
+<p>Всё просто и понятно, сайт будет доступен по адресу <a target="_blank" rel="noopener" href="http://localhost:4000/">http://localhost:4000/</a></p>
+<h3 id="Шаг-5-настройка-проекта"><a href="#Шаг-5-настройка-проекта" class="headerlink" title="Шаг 5 настройка проекта"></a>Шаг 5 настройка проекта</h3><h4 id="Шаг-5-1-создание-репозитория-для-сайта"><a href="#Шаг-5-1-создание-репозитория-для-сайта" class="headerlink" title="Шаг 5.1 создание репозитория для сайта"></a>Шаг 5.1 создание репозитория для сайта</h4><p>Блог будет крутиться на <code>github pages</code> или <code>bitbucket pages</code>, поэтому необходимо создать пустой проект с названием <code>&lt;username&gt;.github.io</code> или <code>&lt;username&gt;.bitbucket.io</code>. Насколько я понимаю, выбор зависит только от религиозных предпочтений <del>а ещё на bitbucket бесплатные приватные репозитории</del></p>
+<h4 id="Шаг-5-2-добавление-deploy-библиотеки"><a href="#Шаг-5-2-добавление-deploy-библиотеки" class="headerlink" title="Шаг 5.2 добавление deploy-библиотеки"></a>Шаг 5.2 добавление deploy-библиотеки</h4><p>Прямо из коробки hexo не умеет выкладывать посты через git. Научим его этому:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install --save hexo-deployer-git</span><br></pre></td></tr></table></figure>
+
+<h4 id="Шаг-5-3-изменение-файла-конфигурации"><a href="#Шаг-5-3-изменение-файла-конфигурации" class="headerlink" title="Шаг 5.3 изменение файла конфигурации"></a>Шаг 5.3 изменение файла конфигурации</h4><p>Настройка производится путём редактирования файла <code>my_awesome_blog/_config.yml</code>. Почти все возможные настройки уже прописаны в файле, остаётся только изменить их под свои нужды. Что стоит поменять:</p>
+<ol>
+<li>Весь блок <code>Site</code>, ибо там находится основная информация о сайте и авторе.</li>
+<li>Значение <code>url</code> заменяем на <code>https://&lt;username&gt;.bitbucket.io</code></li>
+<li>В <code>new_post_name</code> хранится путь до постов с использованием переменных. Синтаксис здесь достаточно ограничен, но можно использовать путь с субдирикториями (например <code>:year/:month/:title.md</code>)</li>
+<li><code>theme</code> - название темы оформления. Hexo будет искать папку с указанным названием в <code>my_awesome_blog/themes</code>. Темы можно найти на github или выбрать из <a target="_blank" rel="noopener" href="https://hexo.io/themes/">официального списка</a></li>
+<li>Блок <code>Deployment</code> настраиваем следующим образом: <figure class="highlight yaml"><figcaption><span>_config.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">deploy:</span></span><br><span class="line">  <span class="attr">type:</span> <span class="string">git</span></span><br><span class="line">  <span class="attr">repo:</span> <span class="string">git@bitbucket.org:&lt;username&gt;/&lt;username&gt;.bitbucket.io.git</span></span><br><span class="line">    </span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>На этом этапе вновь можно запустить локальный сервер и посмотреть, что ничего не сломано.</p>
+<h3 id="Шаг-6-создание-нового-поста"><a href="#Шаг-6-создание-нового-поста" class="headerlink" title="Шаг 6 создание нового поста"></a>Шаг 6 создание нового поста</h3><p>Опять же, есть два <del>стула</del> пути:</p>
+<ul>
+<li><p>С помощью команды hexo:</p>
+  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo new post &lt;title&gt;</span><br></pre></td></tr></table></figure></li>
+<li><p>Руками создать пост по пути, который описан в <code>_config.yml</code> в ключе <code>new_post_name</code></p>
+</li>
+</ul>
+<p>Сам пост может быть как чистым <code>markdown</code>, так и использовать переменные hexo, например заголовок поста:</p>
+<figure class="highlight markdown"><figcaption><span>new_post.md</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">---</span><br><span class="line">title: Some title</span><br><span class="line">date: YYYY-mm-dd HH:ii:ss</span><br><span class="line">categories:</span><br><span class="line"><span class="bullet">  -</span> category 1</span><br><span class="line"><span class="bullet">  -</span> category 2</span><br><span class="line">tags:</span><br><span class="line"><span class="bullet">  -</span> tag 1</span><br><span class="line"><span class="section">  - tag 2</span></span><br><span class="line"><span class="section">---</span></span><br></pre></td></tr></table></figure>
+<p>После создания первого поста можно удалить дефолтный <code>my_awesome_blog/source/_post/hello-world.md</code></p>
+<h3 id="Шаг-7-deploy"><a href="#Шаг-7-deploy" class="headerlink" title="Шаг 7 deploy"></a>Шаг 7 deploy</h3><p>Проще не бывает:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">hexo clean</span><br><span class="line">hexo deploy</span><br></pre></td></tr></table></figure>
+<p>После этого заходим в репозиторий и видим там собственно сайт. Ну и в течение некоторого времени (возможно, даже сразу после развёртывания) блог станет доступен по адресу <code>https://&lt;username&gt;.bitbucket.io</code>.</p>
+<p>Вуаля, вы прекрастны и неотразимы и у вас есть свой блог на https без лишних растройств и вложений.</p>
+<p>Функционал блога можно расширять с помощью плагинов, а некоторые темы уже несут в себе множество дополнительных функций. Более подробнее можно прочитать в <a target="_blank" rel="noopener" href="https://hexo.io/docs/index.html">официальной документации</a>.</p>
+
+  </div>
+  <footer class="article-footer">
+    
+  <div class="cc">
+    <a href="http://creativecommons.org/licenses/by-sa/4.0/deed.e" target="_blank" title="Attribution-ShareAlike">
+      <img src="/images/cc/cc.png">
+      
+          <img src="/images/cc/by.png">
+        
+          <img src="/images/cc/sa.png">
+      
+      <span>
+        This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.
+      </span>
+    </a>
+  </div>
+
+
+    
+
+  </footer>
+</article>
+
+
+
+
+
+
+
+          <div class="main-footer">
+  
+    2009-2024 (c)dannc/dannecron
+  
+</div>
+
+      
+        </div>
+      
+    </div>
+  </div>
+  
+<script src="//apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+
+
+  
+<link rel="stylesheet" href="/PhotoSwipe/photoswipe.css">
+
+  
+<link rel="stylesheet" href="/PhotoSwipe/default-skin/default-skin.css">
+
+
+  <!-- Root element of PhotoSwipe. Must have class pswp. -->
+  <div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe.
+             It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+      <!-- Container that holds slides.
+                PhotoSwipe keeps only 3 of them in the DOM to save memory.
+                Don't modify these 3 pswp__item elements, data is added later on. -->
+      <div class="pswp__container">
+        <div class="pswp__item"></div>
+        <div class="pswp__item"></div>
+        <div class="pswp__item"></div>
+      </div>
+
+      <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+      <div class="pswp__ui pswp__ui--hidden">
+
+        <div class="pswp__top-bar">
+
+          <!--  Controls are self-explanatory. Order can be changed. -->
+
+          <div class="pswp__counter"></div>
+
+          <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+          <button class="pswp__button pswp__button--share" title="Share"></button>
+
+          <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+          <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+          <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+          <!-- element will get class pswp__preloader--active when preloader is running -->
+          <div class="pswp__preloader">
+            <div class="pswp__preloader__icn">
+              <div class="pswp__preloader__cut">
+                <div class="pswp__preloader__donut"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+          <div class="pswp__share-tooltip"></div>
+        </div>
+
+        <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)"></button>
+
+        <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button>
+
+        <div class="pswp__caption">
+          <div class="pswp__caption__center"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script src="/PhotoSwipe/photoswipe.js"></script>
+
+  
+<script src="/PhotoSwipe/photoswipe-ui-default.js"></script>
+
+
+
+
+<script src="/perfect-scrollbar/js/min/perfect-scrollbar.min.js"></script>
+
+
+<script src="/scripts/main.js"></script>
+
+
+</body>
+</html>

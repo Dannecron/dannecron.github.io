@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+
+
+<title>
+  
+    Запуск сервера vpn и прокси на VPS
+  
+</title>
+
+<meta name="description" content="Итак, Россию отменили в мире. Оценочные суждения оставлю за рамками этой статейки, но одно стало понятно: vpn и проксирование трафика через VPS, находящиеся за рубежом, - это необходимость. Поэтому ра">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Запуск сервера vpn и прокси на VPS">
+<meta property="og:url" content="https://dannecron.github.io/2022/03/12/vpn-proxy/index.html">
+<meta property="og:site_name" content="SAO-blog">
+<meta property="og:description" content="Итак, Россию отменили в мире. Оценочные суждения оставлю за рамками этой статейки, но одно стало понятно: vpn и проксирование трафика через VPS, находящиеся за рубежом, - это необходимость. Поэтому ра">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2022-03-12T11:33:50.000Z">
+<meta property="article:modified_time" content="2024-03-10T15:24:56.468Z">
+<meta property="article:author" content="Daniel Savosin">
+<meta property="article:tag" content="programming">
+<meta property="article:tag" content="docker">
+<meta property="article:tag" content="vpn">
+<meta name="twitter:card" content="summary">
+
+
+  <link rel="alternative" href="/atom.xml" title="SAO-blog" type="application/atom+xml">
+
+
+
+  <link rel="icon" href="/assets/favicon.ico">
+
+
+
+<link rel="stylesheet" href="/perfect-scrollbar/css/perfect-scrollbar.min.css">
+
+
+<link rel="stylesheet" href="/styles/main.css">
+
+
+
+
+
+
+
+<style type="text/css">
+.spoiler {
+  display: inline-flex;
+}
+p.spoiler {
+  display: flex;
+}
+.spoiler a {
+  pointer-events: none;
+}
+.spoiler-blur, .spoiler-blur > * {
+  transition: text-shadow .5s ease;
+}
+.spoiler .spoiler-blur, .spoiler .spoiler-blur > * {
+  color: rgba(0, 0, 0, 0);
+  background-color: rgba(0, 0, 0, 0);
+  text-shadow: 0 0 10px grey;
+  cursor: pointer;
+}
+.spoiler .spoiler-blur:hover, .spoiler .spoiler-blur:hover > * {
+  text-shadow: 0 0 5px grey;
+}
+.spoiler-box, .spoiler-box > * {
+  transition: color .5s ease,
+  background-color .5s ease;
+}
+.spoiler .spoiler-box, .spoiler .spoiler-box > * {
+  color: black;
+  background-color: black;
+  text-shadow: none;
+}</style><meta name="generator" content="Hexo 6.3.0"></head>
+<body
+  
+  >
+  <div class="mobile-header">
+  <button class="sidebar-toggle" type="button">
+    <span class="icon-bar"></span>
+    <span class="icon-bar"></span>
+    <span class="icon-bar"></span>
+  </button>
+  <a class="title" href="/">SAO-blog</a>
+</div>
+
+  <div class="main-container">
+    <div class="sidebar">
+  <div class="header">
+    <h1 class="title"><a href="/">SAO-blog</a></h1>
+    
+    <div class="info">
+      <div class="content">
+        
+          <div class="description">blog about something and nothing</div>
+        
+        
+          <div class="author">Daniel Savosin</div>
+        
+      </div>
+      
+        <div class="avatar">
+          
+            <a href="/about"><img src="/avatar.png"></a>
+          
+        </div>
+      
+    </div>
+  </div>
+  <div class="body">
+    
+      
+        <ul class="nav">
+          
+            
+              <li>
+                <a href="/" title="Homepage" external="false">Homepage</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="/about" title="About" external="false">About</a>
+              </li>
+            
+          
+            
+              <li class="archive-list-container">
+                <a href="javascript:;">Archive</a>
+                <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/">2024</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/">2023</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2022/">2022</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/">2021</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/">2020</a><span class="archive-list-count">8</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/">2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/">2018</a><span class="archive-list-count">7</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/">2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/">2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/">2015</a><span class="archive-list-count">10</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/">2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/">2013</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2012/">2012</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2011/">2011</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2010/">2010</a><span class="archive-list-count">19</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2009/">2009</a><span class="archive-list-count">48</span></li></ul>
+              </li>
+            
+          
+            
+              <li class="category-list-container">
+                <a href="javascript:;">Category</a>
+                <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/memo/">memo</a><span class="category-list-count">71</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/programming/">programming</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/review/">review</a><span class="category-list-count">45</span></li></ul>
+              </li>
+            
+          
+            
+              <li class="tag-list-container">
+                <a href="javascript:;">Tag</a>
+                <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/adolescence/" rel="tag">adolescence</a><span class="tag-list-count">72</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/amv/" rel="tag">amv</a><span class="tag-list-count">6</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/android/" rel="tag">android</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/anime/" rel="tag">anime</a><span class="tag-list-count">8</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/book/" rel="tag">book</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/docker/" rel="tag">docker</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/e3/" rel="tag">e3</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/games/" rel="tag">games</a><span class="tag-list-count">37</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/imdb/" rel="tag">imdb</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/javascript/" rel="tag">javascript</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/lyrics/" rel="tag">lyrics</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mal/" rel="tag">mal</a><span class="tag-list-count">4</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/manga/" rel="tag">manga</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/markdown/" rel="tag">markdown</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/minio/" rel="tag">minio</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/movie/" rel="tag">movie</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/music/" rel="tag">music</a><span class="tag-list-count">4</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/origin/" rel="tag">origin</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/pc/" rel="tag">pc</a><span class="tag-list-count">34</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/photoshop/" rel="tag">photoshop</a><span class="tag-list-count">5</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/play-market/" rel="tag">play market</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/programming/" rel="tag">programming</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ps4/" rel="tag">ps4</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/psp/" rel="tag">psp</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/review/" rel="tag">review</a><span class="tag-list-count">44</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/review-game-vk/" rel="tag">review - game - vk</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/slice-of-life/" rel="tag">slice of life</a><span class="tag-list-count">59</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/steam/" rel="tag">steam</a><span class="tag-list-count">32</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/traefik/" rel="tag">traefik</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vk/" rel="tag">vk</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vpn/" rel="tag">vpn</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/windows-store/" rel="tag">windows store</a><span class="tag-list-count">1</span></li></ul>
+              </li>
+            
+          
+        </ul>
+      
+        <ul class="nav">
+          
+            
+              <li>
+                <a href="https://steamcommunity.com/id/dannc" title="Steam" target="_blank" rel="noopener">Steam</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://my.playstation.com/profile/DanNecron" title="PSN" target="_blank" rel="noopener">PSN</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://instagram.com/dannecron?igshid=NGVhN2U2NjQ0Yg==" title="Instagram" target="_blank" rel="noopener">Instagram</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://twitter.com/dannecron" title="Twitter" target="_blank" rel="noopener">Twitter</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://myanimelist.net/profile/DanNC" title="MyAnimeList" target="_blank" rel="noopener">MyAnimeList</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://www.last.fm/ru/user/DanNecron" title="LastFM" target="_blank" rel="noopener">LastFM</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://www.livelib.ru/reader/DanNC" title="LiveLib" target="_blank" rel="noopener">LiveLib</a>
+              </li>
+            
+          
+            
+              <li>
+                <a href="https://github.com/dannecron" title="Github" target="_blank" rel="noopener">Github</a>
+              </li>
+            
+          
+        </ul>
+      
+        <ul class="nav">
+          
+            
+              <li>
+                <a href="/atom.xml" title="RSS feed" external="false">RSS feed</a>
+              </li>
+            
+          
+        </ul>
+      
+        <ul class="nav">
+          
+            
+              <li>
+                <a href="https://github.com/denjones/hexo-theme-chan" title="based on Chan-theme" target="_blank" rel="noopener">based on Chan-theme</a>
+              </li>
+            
+          
+        </ul>
+      
+    
+  </div>
+</div>
+
+    <div class="main-content">
+      
+        <div style="max-width: 1000px">
+      
+          <article id="post-vpn-proxy" class="article article-type-post">
+  
+    <h1 class="article-header">
+      Запуск сервера vpn и прокси на VPS
+    </h1>
+  
+  
+
+  <div class="article-info">
+    <span class="article-date">
+  2022-03-12
+</span>
+
+    
+	<span class="article-category tagcloud">
+	<ul class="article-category-list"><li class="article-category-list-item"><a class="article-category-list-link" href="/categories/programming/">programming</a></li></ul>
+	</span>
+
+
+    
+	<span class="article-tag tagcloud">
+		<ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/docker/" rel="tag">docker</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/programming/" rel="tag">programming</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/vpn/" rel="tag">vpn</a></li></ul>
+	</span>
+
+
+  </div>
+  <div class="article-entry">
+    <p>Итак, Россию отменили в мире. Оценочные суждения оставлю за рамками этой статейки, но одно стало понятно: vpn и проксирование трафика через VPS, находящиеся за рубежом, - это необходимость. Поэтому распишу те решения, которые я самостоятельно развернул и проверил их работоспособность.</p>
+<span id="more"></span>
+
+<p>Во-первых, немного категоризации. Выделил для себя три типа проксирования трафика:</p>
+<ol>
+<li>Уровень приложений. Здесь достаточно обычного sock5-proxy-сервера, который можно прописать в конфигах многих приложений. Например, подобная настройка доступна у Telegram или десктопного Spotify. Неожиданно, но даже в мобильном браузере FireFox можно установить расширение с поддержкой прокси. Из минусов: поддерживается не везде, не сильно безопасно.</li>
+<li>Уровень системы. Здесь уже хотелось бы выбрать решение, которое можно использовать на всех системах, заворачивая весь трафик на устройстве через vpn. Вариантов, в целом, не мало: есть достаточно распространённый <code>openvpn</code>, есть классические <code>l2tp</code> соединения, а есть <code>wireguard</code> - тёмная лошадка, о которой как-то не очень много пишут в статьях про “как настроить vpn”.</li>
+<li>Уровень роутера. Опционален для большинства, так как не все роутеры поддерживают запуск vpn-клиентов непосредственно на железе. Мне немного повезло выбрать роутер с такой поддержкой. Если есть старенький роутер, который не жалко, то можно попробовать прошить его, поставив на борт <a target="_blank" rel="noopener" href="https://dd-wrt.com/"><code>dd-wrt</code></a>. Очень крутая штука, которая может вдохнуть вторую жизнь в устаревшее устройство. По поводу решений: всё тоже самое, что и в пункте 2, главное чтобы роутер поддерживал соединение к выбранному серверу.</li>
+</ol>
+<p>Во-вторых, хочется всё максимально простое и портативное. А значит нужно использовать docker-образы. Если у решения слишком сложная настройка или нет хотя бы базового docker-образа, то решение пропускаю.</p>
+<p>Итак, пойду по порядку.</p>
+<h2 id="Proxy"><a href="#Proxy" class="headerlink" title="Proxy"></a>Proxy</h2><p>Решений в данной категории не мало. Я же остановился на проверенном решении - <a target="_blank" rel="noopener" href="https://www.inet.no/dante/"><code>dante</code></a>. Но здесь проблема, что официального образа на dockerhub нет. Но есть сборки от сторонних людей. Не долго гугля, выбрал <a target="_blank" rel="noopener" href="https://github.com/vimagick/dockerfiles/tree/master/dante">это решение</a> с <a target="_blank" rel="noopener" href="https://hub.docker.com/r/vimagick/dante/">образами на hub.docker.com</a>.</p>
+<p>Настройка простая: создаём файл <code>docker-compose.yml</code> и записываем туда основные параметры:</p>
+<figure class="highlight yaml"><figcaption><span>docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3.8&quot;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">dante:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">vimagick/dante:latest</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="attr">CFGFILE:</span> <span class="string">/etc/dante/sockd.conf</span></span><br><span class="line">      <span class="attr">PIDFILE:</span> <span class="string">/run/sockd.pid</span></span><br><span class="line">      <span class="attr">WORKERS:</span> <span class="number">4</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;1080:1080&quot;</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./data:/etc/dante</span></span><br><span class="line">    <span class="attr">tmpfs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/run</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">unless-stopped</span></span><br></pre></td></tr></table></figure>
+
+<p>Рядом создаём директорию <code>data</code> и кладём в неё файл <code>sockd.conf</code> со следующим содержимым</p>
+<figure class="highlight yaml"><figcaption><span>data/sockd.conf</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">debug:</span> <span class="number">0</span></span><br><span class="line"><span class="attr">logoutput:</span> <span class="string">stderr</span></span><br><span class="line"><span class="attr">internal:</span> <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span> <span class="string">port</span> <span class="string">=</span> <span class="number">1080</span></span><br><span class="line"><span class="attr">external:</span> <span class="string">eth0</span></span><br><span class="line"><span class="attr">socksmethod:</span> <span class="string">username</span> <span class="string">none</span></span><br><span class="line"><span class="attr">clientmethod:</span> <span class="string">none</span></span><br><span class="line"><span class="attr">user.privileged:</span> <span class="string">root</span></span><br><span class="line"><span class="attr">user.unprivileged:</span> <span class="string">nobody</span></span><br><span class="line"></span><br><span class="line"><span class="string">client</span> <span class="string">pass</span> &#123;</span><br><span class="line">    <span class="attr">from: 0.0.0.0/0 port 1-65535 to:</span> <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span><span class="string">/0</span></span><br><span class="line">    <span class="attr">log:</span> <span class="string">error</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="string">socks</span> <span class="string">pass</span> &#123;</span><br><span class="line">    <span class="attr">from: 0.0.0.0/0 to:</span> <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span><span class="string">/0</span></span><br><span class="line">    <span class="comment">#socksmethod: username</span></span><br><span class="line">    <span class="attr">log:</span> <span class="string">error</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Далее <code>docker-compose up -d</code> и profit. Подключение выглядит как <code>&lt;ip&gt;:1080</code>. Для безопасности можно сделать доступ по логину&#x2F;паролю. Для этого нужно внутри контейнера добавить пользователя:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker-compose exec dante bash</span><br><span class="line">echo username:password | chpasswd</span><br><span class="line">useradd username</span><br></pre></td></tr></table></figure>
+
+<p>Правда, эти изменения сохраняться до первого перезапуска контейнера. Чтобы их заперсистить, лучше всего создать свой <code>Dockerfile</code> с пробросом логина и пароля через аргументы.</p>
+<h2 id="VPN"><a href="#VPN" class="headerlink" title="VPN"></a>VPN</h2><p>Далее я взял два решения. <code>Wireguard</code> для повседневного использования и <code>OpenVPN</code> для подключения на уровне роутера</p>
+<h3 id="Wireguard"><a href="#Wireguard" class="headerlink" title="Wireguard"></a>Wireguard</h3><p>Достаточно легковесное <a target="_blank" rel="noopener" href="https://www.wireguard.com/">решение</a>, но при этом достаточно безопасное и быстрое, что не маловажно при повседневном использовании. Основной минус - отсутствие нативной поддержки где бы то ни было. Но на всех актуальных платформах (windows&#x2F;android&#x2F;linux&#x2F;ios) есть <a target="_blank" rel="noopener" href="https://www.wireguard.com/install/">реализации клиента</a>. При этом, всё это добро <a target="_blank" rel="noopener" href="https://www.wireguard.com/repositories/">open-source</a>, но не всё лежит на github.</p>
+<p>Официальных сборок под docker нет, но есть <a target="_blank" rel="noopener" href="https://hub.docker.com/r/linuxserver/wireguard">образы</a> сервера с достаточно <a target="_blank" rel="noopener" href="https://github.com/linuxserver/docker-wireguard">подробной документацией</a> как это всё запустить и настроить.</p>
+<p>Я не особо вдавался в настройку и запустил всё с дефолтными параметрами. Для этого заводим такой <code>docker-compose.yml</code>:</p>
+<figure class="highlight yaml"><figcaption><span>docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3.8&quot;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">wireguard:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">linuxserver/wireguard:1.0.20210914</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">wireguard</span></span><br><span class="line">    <span class="attr">cap_add:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">NET_ADMIN</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">SYS_MODULE</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PUID=1000</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PGID=1000</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">TZ=Europe/London</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">SERVERPORT=51820</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PEERS=4</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PEERDNS=auto</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">ALLOWEDIPS=0.0.0.0/0</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./config:/config</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/lib/modules:/lib/modules</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">51820</span><span class="string">:51820/udp</span></span><br><span class="line">    <span class="attr">sysctls:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">net.ipv4.conf.all.src_valid_mark=1</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">unless-stopped</span></span><br></pre></td></tr></table></figure>
+
+<p>Из всего этого можно поменять переменную <code>PEERS</code>, которая указывает количество конфигураций для клиентов, которые будут сгенерированы на старте.</p>
+<p>Далее запускаем сервер <code>docker-compose up -d</code>. После того, как всё будет запущено, то по пути <code>./config/peerX</code> будет находится файл <code>peerX.conf</code>, который нужно будет скормить программе-клиенту. Ещё вариант получить конфигурацию - это вывести логи контейнера <code>docker-compose logs wireguard</code> после первого запуска контейнера. Прямо в логах будут отрендерены qr-коды которые можно считать на мобильных устройствах, что убирает необходимость пересылки файла конфигурации на устройство. Данные qr-коды так же лежат в конфигурации в файле <code>peerX.png</code>.</p>
+<h3 id="OpenVPN"><a href="#OpenVPN" class="headerlink" title="OpenVPN"></a>OpenVPN</h3><p><a target="_blank" rel="noopener" href="https://openvpn.net/vpn-software-packages/"><code>Openvpn</code></a> очень похож на <code>wireguard</code>, вот только у последнего <a target="_blank" rel="noopener" href="https://www.top10vpn.com/guides/wireguard-vs-openvpn/">заявлена более высокая производительность</a>. Но при этом <code>openvpn</code> поддерживается б__о__льшим количеством устройств.</p>
+<p>В удобстве настройки <code>openvpn</code> так же проигрывает <code>wireguard</code>. Особенно в docker. Как и в предыдущем случае, официальных образов нет, но есть <a target="_blank" rel="noopener" href="https://github.com/kylemanna/docker-openvpn">достаточно популярное решение</a>, которое требует предварительной конфигурации перед стартом. Для удобства даже сделали <a target="_blank" rel="noopener" href="https://github.com/rhamdeew/docker-compose-openvpn">обёртку</a> над командами для пре-конфигурации. Именно эту обёртку я и использовал. </p>
+<p>Берём <code>docker-compose.yml</code></p>
+<figure class="highlight yaml"><figcaption><span>docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;3&#x27;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">openvpn:</span></span><br><span class="line">    <span class="attr">cap_add:</span></span><br><span class="line">     <span class="bullet">-</span> <span class="string">NET_ADMIN</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">kylemanna/openvpn</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">openvpn</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">     <span class="bullet">-</span> <span class="string">&quot;1194:1194/udp&quot;</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">always</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">     <span class="bullet">-</span> <span class="string">./openvpn-data/conf:/etc/openvpn</span></span><br></pre></td></tr></table></figure>
+
+<p>И последовательно выполняем следующие команды:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">docker-compose run --rm openvpn ovpn_genconfig -u udp://&lt;ip&gt;</span><br><span class="line">docker-compose run --rm openvpn touch /etc/openvpn/vars</span><br><span class="line">docker-compose run --rm openvpn ovpn_initpki</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">здесь произойдёт генерация сертификата и будет задан вопрос на установку контрольной фразы</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">можно задать её, но тогда на следующих шагах потребуется ввести её</span></span><br><span class="line">docker-compose run --rm openvpn easyrsa build-client-full &lt;username&gt; nopass</span><br><span class="line">docker-compose run --rm openvpn ovpn_getclient &lt;username&gt; &gt; client_configs/&lt;username&gt;.ovpn</span><br></pre></td></tr></table></figure>
+
+<p>Ну и последний шаг <code>docker-compose up -d</code>. Файл <code>client_configs/&lt;username&gt;.ovpn</code> нужно передать на устройство и добавить в клиент.</p>
+<p>Небольшая ремарка. Внутри контейнера сервер имеет версию <code>2.4.x</code>. Соответственно и конфигурация была сгенерирована для клиентов аналогичной версии. Поэтому нужно убедиться, что клиент именно такой версии. В противном случае можно получить ошибки подключения к сайтам, хотя соединение успешно установлено. При этом на сервере будут ошибки <code>Bad compression stub decompression header</code>. В данном случае файл <code>.ovpn</code> нужно отредактировать руками, добавив в конец первого блока (до определения <code>remote</code>) новую строку <code>comp-lzo no</code>.</p>
+<h2 id="Afterword"><a href="#Afterword" class="headerlink" title="Afterword"></a>Afterword</h2><p>В целом, в 2022 настройка self-hosted решений для vpn требуют минимум знаний, всё предельно просто. Пока все три решения живут на одной виртуалке с 1CPU и 2GB RAM и этого хватает. При 100Mb основного соединения все решения выдают 60-80Mb, что очень неплохо, на мой взгляд.</p>
+
+  </div>
+  <footer class="article-footer">
+    
+  <div class="cc">
+    <a href="http://creativecommons.org/licenses/by-sa/4.0/deed.e" target="_blank" title="Attribution-ShareAlike">
+      <img src="/images/cc/cc.png">
+      
+          <img src="/images/cc/by.png">
+        
+          <img src="/images/cc/sa.png">
+      
+      <span>
+        This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.
+      </span>
+    </a>
+  </div>
+
+
+    
+
+  </footer>
+</article>
+
+
+
+
+
+
+
+          <div class="main-footer">
+  
+    2009-2024 (c)dannc/dannecron
+  
+</div>
+
+      
+        </div>
+      
+    </div>
+  </div>
+  
+<script src="//apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+
+
+  
+<link rel="stylesheet" href="/PhotoSwipe/photoswipe.css">
+
+  
+<link rel="stylesheet" href="/PhotoSwipe/default-skin/default-skin.css">
+
+
+  <!-- Root element of PhotoSwipe. Must have class pswp. -->
+  <div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe.
+             It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+      <!-- Container that holds slides.
+                PhotoSwipe keeps only 3 of them in the DOM to save memory.
+                Don't modify these 3 pswp__item elements, data is added later on. -->
+      <div class="pswp__container">
+        <div class="pswp__item"></div>
+        <div class="pswp__item"></div>
+        <div class="pswp__item"></div>
+      </div>
+
+      <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+      <div class="pswp__ui pswp__ui--hidden">
+
+        <div class="pswp__top-bar">
+
+          <!--  Controls are self-explanatory. Order can be changed. -->
+
+          <div class="pswp__counter"></div>
+
+          <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+          <button class="pswp__button pswp__button--share" title="Share"></button>
+
+          <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+          <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+          <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+          <!-- element will get class pswp__preloader--active when preloader is running -->
+          <div class="pswp__preloader">
+            <div class="pswp__preloader__icn">
+              <div class="pswp__preloader__cut">
+                <div class="pswp__preloader__donut"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+          <div class="pswp__share-tooltip"></div>
+        </div>
+
+        <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)"></button>
+
+        <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button>
+
+        <div class="pswp__caption">
+          <div class="pswp__caption__center"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+<script src="/PhotoSwipe/photoswipe.js"></script>
+
+  
+<script src="/PhotoSwipe/photoswipe-ui-default.js"></script>
+
+
+
+
+<script src="/perfect-scrollbar/js/min/perfect-scrollbar.min.js"></script>
+
+
+<script src="/scripts/main.js"></script>
+
+
+</body>
+</html>
