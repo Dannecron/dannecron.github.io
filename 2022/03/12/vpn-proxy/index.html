@@ -1,0 +1,647 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="SAO-blog">
+    <title>Запуск сервера vpn и прокси на VPS - SAO-blog</title>
+    <meta name="author" content="Daniel Savosin">
+    
+    
+        <link rel="icon" href="https://dannecron.github.io/assets/favicon.ico">
+    
+    
+        
+            <link rel="alternate" type="application/atom+xml" title="RSS" href="/atom.xml">
+        
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Daniel Savosin","sameAs":["https://dannecron.ru","https://steamcommunity.com/id/dannc","https://myanimelist.net/profile/DanNC","https://www.last.fm/ru/user/DanNecron"],"image":"avatar.png"},"articleBody":"Итак, Россию отменили в мире. Оценочные суждения оставлю за рамками этой статейки, но одно стало понятно: vpn и проксирование трафика через VPS, находящиеся за рубежом, - это необходимость. Поэтому распишу те решения, которые я самостоятельно развернул и проверил их работоспособность.\n\n\nВо-первых, немного категоризации. Выделил для себя три типа проксирования трафика:\n\nУровень приложений. Здесь достаточно обычного sock5-proxy-сервера, который можно прописать в конфигах многих приложений. Например, подобная настройка доступна у Telegram или десктопного Spotify. Неожиданно, но даже в мобильном браузере FireFox можно установить расширение с поддержкой прокси. Из минусов: поддерживается не везде, не сильно безопасно.\nУровень системы. Здесь уже хотелось бы выбрать решение, которое можно использовать на всех системах, заворачивая весь трафик на устройстве через vpn. Вариантов, в целом, не мало: есть достаточно распространённый openvpn, есть классические l2tp соединения, а есть wireguard - тёмная лошадка, о которой как-то не очень много пишут в статьях про “как настроить vpn”.\nУровень роутера. Опционален для большинства, так как не все роутеры поддерживают запуск vpn-клиентов непосредственно на железе. Мне немного повезло выбрать роутер с такой поддержкой. Если есть старенький роутер, который не жалко, то можно попробовать прошить его, поставив на борт dd-wrt. Очень крутая штука, которая может вдохнуть вторую жизнь в устаревшее устройство. По поводу решений: всё тоже самое, что и в пункте 2, главное чтобы роутер поддерживал соединение к выбранному серверу.\n\nВо-вторых, хочется всё максимально простое и портативное. А значит нужно использовать docker-образы. Если у решения слишком сложная настройка или нет хотя бы базового docker-образа, то решение пропускаю.\nИтак, пойду по порядку.\nProxyРешений в данной категории не мало. Я же остановился на проверенном решении - dante. Но здесь проблема, что официального образа на dockerhub нет. Но есть сборки от сторонних людей. Не долго гугля, выбрал это решение с образами на hub.docker.com.\nНастройка простая: создаём файл docker-compose.yml и записываем туда основные параметры:\ndocker-compose.yml123456789101112131415version: &quot;3.8&quot;services:  dante:    image: vimagick/dante:latest    environment:      CFGFILE: /etc/dante/sockd.conf      PIDFILE: /run/sockd.pid      WORKERS: 4    ports:      - &quot;1080:1080&quot;    volumes:      - ./data:/etc/dante    tmpfs:      - /run    restart: unless-stopped\n\nРядом создаём директорию data и кладём в неё файл sockd.conf со следующим содержимым\ndata/sockd.conf12345678910111213141516171819debug: 0logoutput: stderrinternal: 0.0.0.0 port = 1080external: eth0socksmethod: username noneclientmethod: noneuser.privileged: rootuser.unprivileged: nobodyclient pass &#123;    from: 0.0.0.0/0 port 1-65535 to: 0.0.0.0/0    log: error&#125;socks pass &#123;    from: 0.0.0.0/0 to: 0.0.0.0/0    #socksmethod: username    log: error&#125;\n\nДалее docker-compose up -d и profit. Подключение выглядит как &lt;ip&gt;:1080. Для безопасности можно сделать доступ по логину&#x2F;паролю. Для этого нужно внутри контейнера добавить пользователя:\n123docker-compose exec dante bashecho username:password | chpasswduseradd username\n\nПравда, эти изменения сохраняться до первого перезапуска контейнера. Чтобы их заперсистить, лучше всего создать свой Dockerfile с пробросом логина и пароля через аргументы.\nVPNДалее я взял два решения. Wireguard для повседневного использования и OpenVPN для подключения на уровне роутера\nWireguardДостаточно легковесное решение, но при этом достаточно безопасное и быстрое, что не маловажно при повседневном использовании. Основной минус - отсутствие нативной поддержки где бы то ни было. Но на всех актуальных платформах (windows&#x2F;android&#x2F;linux&#x2F;ios) есть реализации клиента. При этом, всё это добро open-source, но не всё лежит на github.\nОфициальных сборок под docker нет, но есть образы сервера с достаточно подробной документацией как это всё запустить и настроить.\nЯ не особо вдавался в настройку и запустил всё с дефолтными параметрами. Для этого заводим такой docker-compose.yml:\ndocker-compose.yml123456789101112131415161718192021222324version: &quot;3.8&quot;services:  wireguard:    image: linuxserver/wireguard:1.0.20210914    container_name: wireguard    cap_add:      - NET_ADMIN      - SYS_MODULE    environment:      - PUID=1000      - PGID=1000      - TZ=Europe/London      - SERVERPORT=51820      - PEERS=4      - PEERDNS=auto      - ALLOWEDIPS=0.0.0.0/0    volumes:      - ./config:/config      - /lib/modules:/lib/modules    ports:      - 51820:51820/udp    sysctls:      - net.ipv4.conf.all.src_valid_mark=1    restart: unless-stopped\n\nИз всего этого можно поменять переменную PEERS, которая указывает количество конфигураций для клиентов, которые будут сгенерированы на старте.\nДалее запускаем сервер docker-compose up -d. После того, как всё будет запущено, то по пути ./config/peerX будет находится файл peerX.conf, который нужно будет скормить программе-клиенту. Ещё вариант получить конфигурацию - это вывести логи контейнера docker-compose logs wireguard после первого запуска контейнера. Прямо в логах будут отрендерены qr-коды которые можно считать на мобильных устройствах, что убирает необходимость пересылки файла конфигурации на устройство. Данные qr-коды так же лежат в конфигурации в файле peerX.png.\nOpenVPNOpenvpn очень похож на wireguard, вот только у последнего заявлена более высокая производительность. Но при этом openvpn поддерживается б__о__льшим количеством устройств.\nВ удобстве настройки openvpn так же проигрывает wireguard. Особенно в docker. Как и в предыдущем случае, официальных образов нет, но есть достаточно популярное решение, которое требует предварительной конфигурации перед стартом. Для удобства даже сделали обёртку над командами для пре-конфигурации. Именно эту обёртку я и использовал. \nБерём docker-compose.yml\ndocker-compose.yml123456789101112version: &#x27;3&#x27;services:  openvpn:    cap_add:     - NET_ADMIN    image: kylemanna/openvpn    container_name: openvpn    ports:     - &quot;1194:1194/udp&quot;    restart: always    volumes:     - ./openvpn-data/conf:/etc/openvpn\n\nИ последовательно выполняем следующие команды:\n1234567docker-compose run --rm openvpn ovpn_genconfig -u udp://&lt;ip&gt;docker-compose run --rm openvpn touch /etc/openvpn/varsdocker-compose run --rm openvpn ovpn_initpki# здесь произойдёт генерация сертификата и будет задан вопрос на установку контрольной фразы# можно задать её, но тогда на следующих шагах потребуется ввести еёdocker-compose run --rm openvpn easyrsa build-client-full &lt;username&gt; nopassdocker-compose run --rm openvpn ovpn_getclient &lt;username&gt; &gt; client_configs/&lt;username&gt;.ovpn\n\nНу и последний шаг docker-compose up -d. Файл client_configs/&lt;username&gt;.ovpn нужно передать на устройство и добавить в клиент.\nНебольшая ремарка. Внутри контейнера сервер имеет версию 2.4.x. Соответственно и конфигурация была сгенерирована для клиентов аналогичной версии. Поэтому нужно убедиться, что клиент именно такой версии. В противном случае можно получить ошибки подключения к сайтам, хотя соединение успешно установлено. При этом на сервере будут ошибки Bad compression stub decompression header. В данном случае файл .ovpn нужно отредактировать руками, добавив в конец первого блока (до определения remote) новую строку comp-lzo no.\nAfterwordВ целом, в 2022 настройка self-hosted решений для vpn требуют минимум знаний, всё предельно просто. Пока все три решения живут на одной виртуалке с 1CPU и 2GB RAM и этого хватает. При 100Mb основного соединения все решения выдают 60-80Mb, что очень неплохо, на мой взгляд.\n","dateCreated":"2022-03-12T18:33:50+07:00","dateModified":"2022-03-12T18:33:50+07:00","datePublished":"2022-03-12T18:33:50+07:00","description":"Итак, Россию отменили в мире. Оценочные суждения оставлю за рамками этой статейки, но одно стало понятно: vpn и проксирование трафика через VPS, находящиеся за рубежом, - это необходимость. Поэтому распишу те решения, которые я самостоятельно развернул и проверил их работоспособность.","headline":"Запуск сервера vpn и прокси на VPS","image":[],"mainEntityOfPage":{"@type":"WebPage","@id":"https://dannecron.github.io/2022/03/12/vpn-proxy/"},"publisher":{"@type":"Organization","name":"Daniel Savosin","sameAs":["https://dannecron.ru","https://steamcommunity.com/id/dannc","https://myanimelist.net/profile/DanNC","https://www.last.fm/ru/user/DanNecron"],"image":"avatar.png","logo":{"@type":"ImageObject","url":"avatar.png"}},"url":"https://dannecron.github.io/2022/03/12/vpn-proxy/","keywords":"programming, docker, vpn"}</script>
+    <meta name="description" content="Итак, Россию отменили в мире. Оценочные суждения оставлю за рамками этой статейки, но одно стало понятно: vpn и проксирование трафика через VPS, находящиеся за рубежом, - это необходимость. Поэтому ра">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="Запуск сервера vpn и прокси на VPS">
+<meta property="og:url" content="https://dannecron.github.io/2022/03/12/vpn-proxy/index.html">
+<meta property="og:site_name" content="SAO-blog">
+<meta property="og:description" content="Итак, Россию отменили в мире. Оценочные суждения оставлю за рамками этой статейки, но одно стало понятно: vpn и проксирование трафика через VPS, находящиеся за рубежом, - это необходимость. Поэтому ра">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2022-03-12T11:33:50.000Z">
+<meta property="article:modified_time" content="2022-03-12T11:33:50.000Z">
+<meta property="article:author" content="Daniel Savosin">
+<meta property="article:tag" content="programming">
+<meta property="article:tag" content="docker">
+<meta property="article:tag" content="vpn">
+<meta name="twitter:card" content="summary">
+    
+    
+        
+    
+    
+        <meta property="og:image" content="https://dannecron.github.io/assets/avatar.png"/>
+    
+    
+    
+    
+    <!--STYLES-->
+    
+<link rel="stylesheet" href="/assets/css/style.min.css">
+
+    <!--STYLES END-->
+    
+
+    
+
+    
+        
+    
+<style type="text/css">
+.spoiler {
+  display: inline-flex;
+}
+p.spoiler {
+  display: flex;
+}
+.spoiler a {
+  pointer-events: none;
+}
+.spoiler-blur, .spoiler-blur > * {
+  transition: text-shadow .5s ease;
+}
+.spoiler .spoiler-blur, .spoiler .spoiler-blur > * {
+  color: rgba(0, 0, 0, 0);
+  background-color: rgba(0, 0, 0, 0);
+  text-shadow: 0 0 10px grey;
+  cursor: pointer;
+}
+.spoiler .spoiler-blur:hover, .spoiler .spoiler-blur:hover > * {
+  text-shadow: 0 0 5px grey;
+}
+.spoiler-box, .spoiler-box > * {
+  transition: color .5s ease,
+  background-color .5s ease;
+}
+.spoiler .spoiler-box, .spoiler .spoiler-box > * {
+  color: black;
+  background-color: black;
+  text-shadow: none;
+}</style></head>
+
+    <body>
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+            
+        
+    
+
+<header id="header" data-behavior="2">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a
+            class="header-title-link"
+            href="/"
+            aria-label=""
+        >
+            SAO-blog
+        </a>
+    </div>
+    
+        
+            <a
+                class="header-right-picture "
+                href="#about"
+                aria-label="Open the link: /#about"
+            >
+        
+        
+            <img class="header-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+        
+        </a>
+    
+</header>
+
+            <!-- Define author's picture -->
+
+
+
+        
+    
+
+<nav id="sidebar" data-behavior="2">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a
+                    href="/#about"
+                    aria-label="Read more about the author"
+                >
+                    <img class="sidebar-profile-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+                </a>
+                <h4 class="sidebar-profile-name">Daniel Savosin</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>blog about something and nothing</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/"
+                            
+                            rel="noopener"
+                            title="Home"
+                        >
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-categories"
+                            
+                            rel="noopener"
+                            title="Categories"
+                        >
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-tags"
+                            
+                            rel="noopener"
+                            title="Tags"
+                        >
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-archives"
+                            
+                            rel="noopener"
+                            title="Archives"
+                        >
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/about"
+                            
+                            rel="noopener"
+                            title="About"
+                        >
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://dannecron.ru"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="littlelink"
+                        >
+                        <i class="sidebar-button-icon fas fa-share-alt" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">littlelink</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://steamcommunity.com/id/dannc"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="Steam"
+                        >
+                        <i class="sidebar-button-icon fab fa-steam" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Steam</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://myanimelist.net/profile/DanNC"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="MyAnimeList"
+                        >
+                        <i class="sidebar-button-icon fas fa-film" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">MyAnimeList</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://www.last.fm/ru/user/DanNecron"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="LastFM"
+                        >
+                        <i class="sidebar-button-icon fas fa-headphones-alt" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">LastFM</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/atom.xml"
+                            
+                            rel="noopener"
+                            title="RSS"
+                        >
+                        <i class="sidebar-button-icon fa fa-rss" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">RSS</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+            <div id="main" data-behavior="2"
+                 class="
+                        hasCoverMetaIn
+                        ">
+                
+<article class="post">
+    
+    
+        <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            Запуск сервера vpn и прокси на VPS
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2022-03-12T18:33:50+07:00">
+	
+		    2022-03-12
+    	
+    </time>
+    
+        <span>in </span>
+        
+    <a class="category-link" href="/categories/programming/">programming</a>
+
+
+    
+</div>
+
+    
+</div>
+
+    
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <p>Итак, Россию отменили в мире. Оценочные суждения оставлю за рамками этой статейки, но одно стало понятно: vpn и проксирование трафика через VPS, находящиеся за рубежом, - это необходимость. Поэтому распишу те решения, которые я самостоятельно развернул и проверил их работоспособность.</p>
+<span id="more"></span>
+
+<p>Во-первых, немного категоризации. Выделил для себя три типа проксирования трафика:</p>
+<ol>
+<li>Уровень приложений. Здесь достаточно обычного sock5-proxy-сервера, который можно прописать в конфигах многих приложений. Например, подобная настройка доступна у Telegram или десктопного Spotify. Неожиданно, но даже в мобильном браузере FireFox можно установить расширение с поддержкой прокси. Из минусов: поддерживается не везде, не сильно безопасно.</li>
+<li>Уровень системы. Здесь уже хотелось бы выбрать решение, которое можно использовать на всех системах, заворачивая весь трафик на устройстве через vpn. Вариантов, в целом, не мало: есть достаточно распространённый <code>openvpn</code>, есть классические <code>l2tp</code> соединения, а есть <code>wireguard</code> - тёмная лошадка, о которой как-то не очень много пишут в статьях про “как настроить vpn”.</li>
+<li>Уровень роутера. Опционален для большинства, так как не все роутеры поддерживают запуск vpn-клиентов непосредственно на железе. Мне немного повезло выбрать роутер с такой поддержкой. Если есть старенький роутер, который не жалко, то можно попробовать прошить его, поставив на борт <a target="_blank" rel="noopener" href="https://dd-wrt.com/"><code>dd-wrt</code></a>. Очень крутая штука, которая может вдохнуть вторую жизнь в устаревшее устройство. По поводу решений: всё тоже самое, что и в пункте 2, главное чтобы роутер поддерживал соединение к выбранному серверу.</li>
+</ol>
+<p>Во-вторых, хочется всё максимально простое и портативное. А значит нужно использовать docker-образы. Если у решения слишком сложная настройка или нет хотя бы базового docker-образа, то решение пропускаю.</p>
+<p>Итак, пойду по порядку.</p>
+<h2 id="Proxy"><a href="#Proxy" class="headerlink" title="Proxy"></a>Proxy</h2><p>Решений в данной категории не мало. Я же остановился на проверенном решении - <a target="_blank" rel="noopener" href="https://www.inet.no/dante/"><code>dante</code></a>. Но здесь проблема, что официального образа на dockerhub нет. Но есть сборки от сторонних людей. Не долго гугля, выбрал <a target="_blank" rel="noopener" href="https://github.com/vimagick/dockerfiles/tree/master/dante">это решение</a> с <a target="_blank" rel="noopener" href="https://hub.docker.com/r/vimagick/dante/">образами на hub.docker.com</a>.</p>
+<p>Настройка простая: создаём файл <code>docker-compose.yml</code> и записываем туда основные параметры:</p>
+<figure class="highlight yaml"><figcaption><span>docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3.8&quot;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">dante:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">vimagick/dante:latest</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="attr">CFGFILE:</span> <span class="string">/etc/dante/sockd.conf</span></span><br><span class="line">      <span class="attr">PIDFILE:</span> <span class="string">/run/sockd.pid</span></span><br><span class="line">      <span class="attr">WORKERS:</span> <span class="number">4</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;1080:1080&quot;</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./data:/etc/dante</span></span><br><span class="line">    <span class="attr">tmpfs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/run</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">unless-stopped</span></span><br></pre></td></tr></table></figure>
+
+<p>Рядом создаём директорию <code>data</code> и кладём в неё файл <code>sockd.conf</code> со следующим содержимым</p>
+<figure class="highlight yaml"><figcaption><span>data/sockd.conf</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">debug:</span> <span class="number">0</span></span><br><span class="line"><span class="attr">logoutput:</span> <span class="string">stderr</span></span><br><span class="line"><span class="attr">internal:</span> <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span> <span class="string">port</span> <span class="string">=</span> <span class="number">1080</span></span><br><span class="line"><span class="attr">external:</span> <span class="string">eth0</span></span><br><span class="line"><span class="attr">socksmethod:</span> <span class="string">username</span> <span class="string">none</span></span><br><span class="line"><span class="attr">clientmethod:</span> <span class="string">none</span></span><br><span class="line"><span class="attr">user.privileged:</span> <span class="string">root</span></span><br><span class="line"><span class="attr">user.unprivileged:</span> <span class="string">nobody</span></span><br><span class="line"></span><br><span class="line"><span class="string">client</span> <span class="string">pass</span> &#123;</span><br><span class="line">    <span class="attr">from: 0.0.0.0/0 port 1-65535 to:</span> <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span><span class="string">/0</span></span><br><span class="line">    <span class="attr">log:</span> <span class="string">error</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="string">socks</span> <span class="string">pass</span> &#123;</span><br><span class="line">    <span class="attr">from: 0.0.0.0/0 to:</span> <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span><span class="string">/0</span></span><br><span class="line">    <span class="comment">#socksmethod: username</span></span><br><span class="line">    <span class="attr">log:</span> <span class="string">error</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Далее <code>docker-compose up -d</code> и profit. Подключение выглядит как <code>&lt;ip&gt;:1080</code>. Для безопасности можно сделать доступ по логину&#x2F;паролю. Для этого нужно внутри контейнера добавить пользователя:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker-compose exec dante bash</span><br><span class="line">echo username:password | chpasswd</span><br><span class="line">useradd username</span><br></pre></td></tr></table></figure>
+
+<p>Правда, эти изменения сохраняться до первого перезапуска контейнера. Чтобы их заперсистить, лучше всего создать свой <code>Dockerfile</code> с пробросом логина и пароля через аргументы.</p>
+<h2 id="VPN"><a href="#VPN" class="headerlink" title="VPN"></a>VPN</h2><p>Далее я взял два решения. <code>Wireguard</code> для повседневного использования и <code>OpenVPN</code> для подключения на уровне роутера</p>
+<h3 id="Wireguard"><a href="#Wireguard" class="headerlink" title="Wireguard"></a>Wireguard</h3><p>Достаточно легковесное <a target="_blank" rel="noopener" href="https://www.wireguard.com/">решение</a>, но при этом достаточно безопасное и быстрое, что не маловажно при повседневном использовании. Основной минус - отсутствие нативной поддержки где бы то ни было. Но на всех актуальных платформах (windows&#x2F;android&#x2F;linux&#x2F;ios) есть <a target="_blank" rel="noopener" href="https://www.wireguard.com/install/">реализации клиента</a>. При этом, всё это добро <a target="_blank" rel="noopener" href="https://www.wireguard.com/repositories/">open-source</a>, но не всё лежит на github.</p>
+<p>Официальных сборок под docker нет, но есть <a target="_blank" rel="noopener" href="https://hub.docker.com/r/linuxserver/wireguard">образы</a> сервера с достаточно <a target="_blank" rel="noopener" href="https://github.com/linuxserver/docker-wireguard">подробной документацией</a> как это всё запустить и настроить.</p>
+<p>Я не особо вдавался в настройку и запустил всё с дефолтными параметрами. Для этого заводим такой <code>docker-compose.yml</code>:</p>
+<figure class="highlight yaml"><figcaption><span>docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&quot;3.8&quot;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">wireguard:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">linuxserver/wireguard:1.0.20210914</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">wireguard</span></span><br><span class="line">    <span class="attr">cap_add:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">NET_ADMIN</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">SYS_MODULE</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PUID=1000</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PGID=1000</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">TZ=Europe/London</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">SERVERPORT=51820</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PEERS=4</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PEERDNS=auto</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">ALLOWEDIPS=0.0.0.0/0</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./config:/config</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/lib/modules:/lib/modules</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">51820</span><span class="string">:51820/udp</span></span><br><span class="line">    <span class="attr">sysctls:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">net.ipv4.conf.all.src_valid_mark=1</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">unless-stopped</span></span><br></pre></td></tr></table></figure>
+
+<p>Из всего этого можно поменять переменную <code>PEERS</code>, которая указывает количество конфигураций для клиентов, которые будут сгенерированы на старте.</p>
+<p>Далее запускаем сервер <code>docker-compose up -d</code>. После того, как всё будет запущено, то по пути <code>./config/peerX</code> будет находится файл <code>peerX.conf</code>, который нужно будет скормить программе-клиенту. Ещё вариант получить конфигурацию - это вывести логи контейнера <code>docker-compose logs wireguard</code> после первого запуска контейнера. Прямо в логах будут отрендерены qr-коды которые можно считать на мобильных устройствах, что убирает необходимость пересылки файла конфигурации на устройство. Данные qr-коды так же лежат в конфигурации в файле <code>peerX.png</code>.</p>
+<h3 id="OpenVPN"><a href="#OpenVPN" class="headerlink" title="OpenVPN"></a>OpenVPN</h3><p><a target="_blank" rel="noopener" href="https://openvpn.net/vpn-software-packages/"><code>Openvpn</code></a> очень похож на <code>wireguard</code>, вот только у последнего <a target="_blank" rel="noopener" href="https://www.top10vpn.com/guides/wireguard-vs-openvpn/">заявлена более высокая производительность</a>. Но при этом <code>openvpn</code> поддерживается б__о__льшим количеством устройств.</p>
+<p>В удобстве настройки <code>openvpn</code> так же проигрывает <code>wireguard</code>. Особенно в docker. Как и в предыдущем случае, официальных образов нет, но есть <a target="_blank" rel="noopener" href="https://github.com/kylemanna/docker-openvpn">достаточно популярное решение</a>, которое требует предварительной конфигурации перед стартом. Для удобства даже сделали <a target="_blank" rel="noopener" href="https://github.com/rhamdeew/docker-compose-openvpn">обёртку</a> над командами для пре-конфигурации. Именно эту обёртку я и использовал. </p>
+<p>Берём <code>docker-compose.yml</code></p>
+<figure class="highlight yaml"><figcaption><span>docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;3&#x27;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">openvpn:</span></span><br><span class="line">    <span class="attr">cap_add:</span></span><br><span class="line">     <span class="bullet">-</span> <span class="string">NET_ADMIN</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">kylemanna/openvpn</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">openvpn</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">     <span class="bullet">-</span> <span class="string">&quot;1194:1194/udp&quot;</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">always</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">     <span class="bullet">-</span> <span class="string">./openvpn-data/conf:/etc/openvpn</span></span><br></pre></td></tr></table></figure>
+
+<p>И последовательно выполняем следующие команды:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">docker-compose run --rm openvpn ovpn_genconfig -u udp://&lt;ip&gt;</span><br><span class="line">docker-compose run --rm openvpn touch /etc/openvpn/vars</span><br><span class="line">docker-compose run --rm openvpn ovpn_initpki</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">здесь произойдёт генерация сертификата и будет задан вопрос на установку контрольной фразы</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">можно задать её, но тогда на следующих шагах потребуется ввести её</span></span><br><span class="line">docker-compose run --rm openvpn easyrsa build-client-full &lt;username&gt; nopass</span><br><span class="line">docker-compose run --rm openvpn ovpn_getclient &lt;username&gt; &gt; client_configs/&lt;username&gt;.ovpn</span><br></pre></td></tr></table></figure>
+
+<p>Ну и последний шаг <code>docker-compose up -d</code>. Файл <code>client_configs/&lt;username&gt;.ovpn</code> нужно передать на устройство и добавить в клиент.</p>
+<p>Небольшая ремарка. Внутри контейнера сервер имеет версию <code>2.4.x</code>. Соответственно и конфигурация была сгенерирована для клиентов аналогичной версии. Поэтому нужно убедиться, что клиент именно такой версии. В противном случае можно получить ошибки подключения к сайтам, хотя соединение успешно установлено. При этом на сервере будут ошибки <code>Bad compression stub decompression header</code>. В данном случае файл <code>.ovpn</code> нужно отредактировать руками, добавив в конец первого блока (до определения <code>remote</code>) новую строку <code>comp-lzo no</code>.</p>
+<h2 id="Afterword"><a href="#Afterword" class="headerlink" title="Afterword"></a>Afterword</h2><p>В целом, в 2022 настройка self-hosted решений для vpn требуют минимум знаний, всё предельно просто. Пока все три решения живут на одной виртуалке с 1CPU и 2GB RAM и этого хватает. При 100Mb основного соединения все решения выдают 60-80Mb, что очень неплохо, на мой взгляд.</p>
+
+            
+
+
+        </div>
+    </div>
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br/>
+                
+    <a class="tag tag--primary tag--small t-none-link" href="/tags/docker/" rel="tag">docker</a> <a class="tag tag--primary tag--small t-none-link" href="/tags/programming/" rel="tag">programming</a> <a class="tag tag--primary tag--small t-none-link" href="/tags/vpn/" rel="tag">vpn</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2022/11/27/stray/"
+                    data-tooltip="Мнение Stray"
+                    aria-label="PREVIOUS: Мнение Stray"
+                >
+                    
+                        <i class="fa fa-angle-left" aria-hidden="true"></i>
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                    </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2022/02/19/haven/"
+                    data-tooltip="Мнение Haven"
+                    aria-label="NEXT: Мнение Haven"
+                >
+                    
+                        <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                    </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a
+                class="post-action-btn btn btn--default btn-open-shareoptions"
+                href="#btn-open-shareoptions"
+                aria-label="Share this post"
+            >
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a
+                    class="post-action-btn btn btn--default"
+                    target="new" href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2022/03/12/vpn-proxy/"
+                    title="Share on Twitter"
+                    aria-label="Share on Twitter"
+                >
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+        
+    </div>
+</article>
+
+
+
+                <footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2025 Daniel Savosin. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="2">
+                    <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2022/11/27/stray/"
+                    data-tooltip="Мнение Stray"
+                    aria-label="PREVIOUS: Мнение Stray"
+                >
+                    
+                        <i class="fa fa-angle-left" aria-hidden="true"></i>
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                    </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2022/02/19/haven/"
+                    data-tooltip="Мнение Haven"
+                    aria-label="NEXT: Мнение Haven"
+                >
+                    
+                        <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                    </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a
+                class="post-action-btn btn btn--default btn-open-shareoptions"
+                href="#btn-open-shareoptions"
+                aria-label="Share this post"
+            >
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a
+                    class="post-action-btn btn btn--default"
+                    target="new" href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2022/03/12/vpn-proxy/"
+                    title="Share on Twitter"
+                    aria-label="Share on Twitter"
+                >
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="2">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a
+                        class="share-option-btn"
+                        target="new"
+                        href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2022/03/12/vpn-proxy/"
+                        aria-label="Share on Twitter"
+                    >
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+        
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+        
+            <h4 id="about-card-name">Daniel Savosin</h4>
+        
+            <div id="about-card-bio"><p>blog about something and nothing</p>
+</div>
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br/>
+                <p>backend developer</p>
+
+            </div>
+        
+        
+            <div id="about-card-location">
+                <i class="fa fa-map-marker-alt"></i>
+                <br/>
+                Kemerovo, Russia
+            </div>
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/solid-color-image.png');"></div>
+        <!--SCRIPTS-->
+
+<script src="/assets/js/script.min.js"></script>
+
+<!--SCRIPTS END-->
+
+
+    
+
+
+
+
+    </body>
+</html>

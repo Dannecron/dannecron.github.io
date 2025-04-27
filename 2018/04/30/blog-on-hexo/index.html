@@ -1,0 +1,658 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="SAO-blog">
+    <title>Развёртывание статичного блога с использованием hexo - SAO-blog</title>
+    <meta name="author" content="Daniel Savosin">
+    
+    
+        <link rel="icon" href="https://dannecron.github.io/assets/favicon.ico">
+    
+    
+        
+            <link rel="alternate" type="application/atom+xml" title="RSS" href="/atom.xml">
+        
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Daniel Savosin","sameAs":["https://dannecron.ru","https://steamcommunity.com/id/dannc","https://myanimelist.net/profile/DanNC","https://www.last.fm/ru/user/DanNecron"],"image":"avatar.png"},"articleBody":"Собственно, нашел прекрасную библиотеку для простой генерации и развёртывания статического сайта. Имя этой библиотеки hexo. Без лишних слов опишу процесс создания блога с её использованием.\nНебольшое предисловие.Все действия производил на windows 10 с использованием git bash заместо powershell, но на linux это всё заведётся ещё быстрее. Так же все действия свободно можно автоматизировать с использованием docker.\nА что же нужно?Немного. Нужна машина с git на борту и возможностью использовать npm. Нужна консоль, куда без неё. Нужен аккаунт на github или bitbucket Ну и знание языка разметки markdown.На самом деле, последнее даже не обязательно, так как есть всякие wysiwyg-редакторы (например stackedit).\n\n\nШаг 1 установка nodejs и npmБез них окружение javascript уже не живёт ни в каком виде. Не буду развивать тему про установку, просто скажу, что брать версию приложений лучше поновее, а необходимую инфу можно найти здесь.\nШаг 2 установка hexo-cliЗдесь два варианта действий:\n\nустановить глобально и не запариваться 1npm install -g hexo-cli\nЗаморочится и, взяв за основу package.json из официальной документации, “курить маны” и самостоятельно набрасывать каркас приложения.Я пошёл по пути наименьшего сопротивления, чего и всем желаю (наверное).\n\nШаг 3 инициализация проектаВся необходимая структура проекта создаётся командой\n1hexo init my_awesome_blog\n\nПосле нужно подтянуть зависимости\n1npm install\n\nНу и наконец запустим локальный сервер, чтобы убедиться, что всё установилось без проблем.\n1hexo server\n\nВ консоли будет следующий вывод\n12INFO  Start processingINFO  Hexo is running at http://localhost:4000/. Press Ctrl+C to stop.\n\nВсё просто и понятно, сайт будет доступен по адресу http://localhost:4000/\nШаг 5 настройка проектаШаг 5.1 создание репозитория для сайтаБлог будет крутиться на github pages или bitbucket pages, поэтому необходимо создать пустой проект с названием &lt;username&gt;.github.io или &lt;username&gt;.bitbucket.io. Насколько я понимаю, выбор зависит только от религиозных предпочтений а ещё на bitbucket бесплатные приватные репозитории\nШаг 5.2 добавление deploy-библиотекиПрямо из коробки hexo не умеет выкладывать посты через git. Научим его этому:\n1npm install --save hexo-deployer-git\n\nШаг 5.3 изменение файла конфигурацииНастройка производится путём редактирования файла my_awesome_blog/_config.yml. Почти все возможные настройки уже прописаны в файле, остаётся только изменить их под свои нужды. Что стоит поменять:\n\nВесь блок Site, ибо там находится основная информация о сайте и авторе.\nЗначение url заменяем на https://&lt;username&gt;.bitbucket.io\nВ new_post_name хранится путь до постов с использованием переменных. Синтаксис здесь достаточно ограничен, но можно использовать путь с субдирикториями (например :year/:month/:title.md)\ntheme - название темы оформления. Hexo будет искать папку с указанным названием в my_awesome_blog/themes. Темы можно найти на github или выбрать из официального списка\nБлок Deployment настраиваем следующим образом: _config.yml1234deploy:  type: git  repo: git@bitbucket.org:&lt;username&gt;/&lt;username&gt;.bitbucket.io.git    \n\nНа этом этапе вновь можно запустить локальный сервер и посмотреть, что ничего не сломано.\nШаг 6 создание нового постаОпять же, есть два стула пути:\n\nС помощью команды hexo:\n  1hexo new post &lt;title&gt;\nРуками создать пост по пути, который описан в _config.yml в ключе new_post_name\n\n\nСам пост может быть как чистым markdown, так и использовать переменные hexo, например заголовок поста:\nnew_post.md12345678910---title: Some titledate: YYYY-mm-dd HH:ii:sscategories:  - post-category  - sub-categorytags:  - tag 1  - tag 2---\nПосле создания первого поста можно удалить дефолтный my_awesome_blog/source/_post/hello-world.md\nШаг 7 deployПроще не бывает:\n12hexo cleanhexo deploy\nПосле этого заходим в репозиторий и видим там собственно сайт. Ну и в течение некоторого времени (возможно, даже сразу после развёртывания) блог станет доступен по адресу https://&lt;username&gt;.bitbucket.io.\nВуаля, вы прекрастны и неотразимы и у вас есть свой блог на https без лишних растройств и вложений.\nФункционал блога можно расширять с помощью плагинов, а некоторые темы уже несут в себе множество дополнительных функций. Более подробнее можно прочитать в официальной документации.\n","dateCreated":"2018-04-30T20:00:15+07:00","dateModified":"2018-04-30T20:45:29+07:00","datePublished":"2018-04-30T20:00:15+07:00","description":"Собственно, нашел прекрасную библиотеку для простой генерации и развёртывания статического сайта. Имя этой библиотеки hexo. Без лишних слов опишу процесс создания блога с её использованием.\nНебольшое предисловие.Все действия производил на windows 10 с использованием git bash заместо powershell, но на linux это всё заведётся ещё быстрее. Так же все действия свободно можно автоматизировать с использованием docker.\nА что же нужно?Немного. Нужна машина с git на борту и возможностью использовать npm. Нужна консоль, куда без неё. Нужен аккаунт на github или bitbucket Ну и знание языка разметки markdown.На самом деле, последнее даже не обязательно, так как есть всякие wysiwyg-редакторы (например stackedit).","headline":"Развёртывание статичного блога с использованием hexo","image":[],"mainEntityOfPage":{"@type":"WebPage","@id":"https://dannecron.github.io/2018/04/30/blog-on-hexo/"},"publisher":{"@type":"Organization","name":"Daniel Savosin","sameAs":["https://dannecron.ru","https://steamcommunity.com/id/dannc","https://myanimelist.net/profile/DanNC","https://www.last.fm/ru/user/DanNecron"],"image":"avatar.png","logo":{"@type":"ImageObject","url":"avatar.png"}},"url":"https://dannecron.github.io/2018/04/30/blog-on-hexo/","keywords":"programming, javascript, markdown"}</script>
+    <meta name="description" content="Собственно, нашел прекрасную библиотеку для простой генерации и развёртывания статического сайта. Имя этой библиотеки hexo. Без лишних слов опишу процесс создания блога с её использованием. Небольшое">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="Развёртывание статичного блога с использованием hexo">
+<meta property="og:url" content="https://dannecron.github.io/2018/04/30/blog-on-hexo/index.html">
+<meta property="og:site_name" content="SAO-blog">
+<meta property="og:description" content="Собственно, нашел прекрасную библиотеку для простой генерации и развёртывания статического сайта. Имя этой библиотеки hexo. Без лишних слов опишу процесс создания блога с её использованием. Небольшое">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2018-04-30T13:00:15.000Z">
+<meta property="article:modified_time" content="2018-04-30T13:45:29.000Z">
+<meta property="article:author" content="Daniel Savosin">
+<meta property="article:tag" content="programming">
+<meta property="article:tag" content="javascript">
+<meta property="article:tag" content="markdown">
+<meta name="twitter:card" content="summary">
+    
+    
+        
+    
+    
+        <meta property="og:image" content="https://dannecron.github.io/assets/avatar.png"/>
+    
+    
+    
+    
+    <!--STYLES-->
+    
+<link rel="stylesheet" href="/assets/css/style.min.css">
+
+    <!--STYLES END-->
+    
+
+    
+
+    
+        
+    
+<style type="text/css">
+.spoiler {
+  display: inline-flex;
+}
+p.spoiler {
+  display: flex;
+}
+.spoiler a {
+  pointer-events: none;
+}
+.spoiler-blur, .spoiler-blur > * {
+  transition: text-shadow .5s ease;
+}
+.spoiler .spoiler-blur, .spoiler .spoiler-blur > * {
+  color: rgba(0, 0, 0, 0);
+  background-color: rgba(0, 0, 0, 0);
+  text-shadow: 0 0 10px grey;
+  cursor: pointer;
+}
+.spoiler .spoiler-blur:hover, .spoiler .spoiler-blur:hover > * {
+  text-shadow: 0 0 5px grey;
+}
+.spoiler-box, .spoiler-box > * {
+  transition: color .5s ease,
+  background-color .5s ease;
+}
+.spoiler .spoiler-box, .spoiler .spoiler-box > * {
+  color: black;
+  background-color: black;
+  text-shadow: none;
+}</style></head>
+
+    <body>
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+            
+        
+    
+
+<header id="header" data-behavior="2">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a
+            class="header-title-link"
+            href="/"
+            aria-label=""
+        >
+            SAO-blog
+        </a>
+    </div>
+    
+        
+            <a
+                class="header-right-picture "
+                href="#about"
+                aria-label="Open the link: /#about"
+            >
+        
+        
+            <img class="header-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+        
+        </a>
+    
+</header>
+
+            <!-- Define author's picture -->
+
+
+
+        
+    
+
+<nav id="sidebar" data-behavior="2">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a
+                    href="/#about"
+                    aria-label="Read more about the author"
+                >
+                    <img class="sidebar-profile-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+                </a>
+                <h4 class="sidebar-profile-name">Daniel Savosin</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>blog about something and nothing</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/"
+                            
+                            rel="noopener"
+                            title="Home"
+                        >
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-categories"
+                            
+                            rel="noopener"
+                            title="Categories"
+                        >
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-tags"
+                            
+                            rel="noopener"
+                            title="Tags"
+                        >
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-archives"
+                            
+                            rel="noopener"
+                            title="Archives"
+                        >
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/about"
+                            
+                            rel="noopener"
+                            title="About"
+                        >
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://dannecron.ru"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="littlelink"
+                        >
+                        <i class="sidebar-button-icon fas fa-share-alt" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">littlelink</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://steamcommunity.com/id/dannc"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="Steam"
+                        >
+                        <i class="sidebar-button-icon fab fa-steam" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Steam</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://myanimelist.net/profile/DanNC"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="MyAnimeList"
+                        >
+                        <i class="sidebar-button-icon fas fa-film" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">MyAnimeList</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://www.last.fm/ru/user/DanNecron"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="LastFM"
+                        >
+                        <i class="sidebar-button-icon fas fa-headphones-alt" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">LastFM</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/atom.xml"
+                            
+                            rel="noopener"
+                            title="RSS"
+                        >
+                        <i class="sidebar-button-icon fa fa-rss" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">RSS</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+            <div id="main" data-behavior="2"
+                 class="
+                        hasCoverMetaIn
+                        ">
+                
+<article class="post">
+    
+    
+        <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            Развёртывание статичного блога с использованием hexo
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2018-04-30T20:00:15+07:00">
+	
+		    2018-04-30
+    	
+    </time>
+    
+        <span>in </span>
+        
+    <a class="category-link" href="/categories/programming/">programming</a>
+
+
+    
+</div>
+
+    
+</div>
+
+    
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <p>Собственно, нашел прекрасную библиотеку для простой генерации и развёртывания статического сайта. Имя этой библиотеки <a target="_blank" rel="noopener" href="https://hexo.io/">hexo</a>. Без лишних слов опишу процесс создания блога с её использованием.</p>
+<h4 id="Небольшое-предисловие"><a href="#Небольшое-предисловие" class="headerlink" title="Небольшое предисловие."></a>Небольшое предисловие.</h4><p>Все действия производил на windows 10 с использованием <code>git bash</code> заместо <code>powershell</code>, но на linux это всё заведётся ещё быстрее. Так же все действия свободно можно автоматизировать с использованием docker.</p>
+<h4 id="А-что-же-нужно"><a href="#А-что-же-нужно" class="headerlink" title="А что же нужно?"></a>А что же нужно?</h4><p>Немного. Нужна машина с git на борту и возможностью использовать npm. Нужна консоль, куда без неё. Нужен аккаунт на <a target="_blank" rel="noopener" href="https://github.com/">github</a> или <a target="_blank" rel="noopener" href="https://bitbucket.org/">bitbucket</a> Ну и знание языка разметки <a target="_blank" rel="noopener" href="https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet">markdown</a>.<br>На самом деле, последнее даже не обязательно, так как есть всякие wysiwyg-редакторы (например <a target="_blank" rel="noopener" href="https://stackedit.io/">stackedit</a>).</p>
+<span id="more"></span>
+
+<h3 id="Шаг-1-установка-nodejs-и-npm"><a href="#Шаг-1-установка-nodejs-и-npm" class="headerlink" title="Шаг 1 установка nodejs и npm"></a>Шаг 1 установка nodejs и npm</h3><p>Без них окружение javascript уже не живёт ни в каком виде. Не буду развивать тему про установку, просто скажу, что брать версию приложений лучше поновее, а необходимую инфу можно найти <a target="_blank" rel="noopener" href="https://nodejs.org/en/download/">здесь</a>.</p>
+<h3 id="Шаг-2-установка-hexo-cli"><a href="#Шаг-2-установка-hexo-cli" class="headerlink" title="Шаг 2 установка hexo-cli"></a>Шаг 2 установка hexo-cli</h3><p>Здесь два варианта действий:</p>
+<ol>
+<li>установить глобально и не запариваться <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install -g hexo-cli</span><br></pre></td></tr></table></figure></li>
+<li>Заморочится и, взяв за основу <a target="_blank" rel="noopener" href="https://hexo.io/docs/setup.html">package.json из официальной документации</a>, “курить маны” и самостоятельно набрасывать каркас приложения.<br>Я пошёл по пути наименьшего сопротивления, чего и всем желаю <em>(наверное)</em>.</li>
+</ol>
+<h3 id="Шаг-3-инициализация-проекта"><a href="#Шаг-3-инициализация-проекта" class="headerlink" title="Шаг 3 инициализация проекта"></a>Шаг 3 инициализация проекта</h3><p>Вся необходимая структура проекта создаётся командой</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo init my_awesome_blog</span><br></pre></td></tr></table></figure>
+
+<p>После нужно подтянуть зависимости</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install</span><br></pre></td></tr></table></figure>
+
+<p>Ну и наконец запустим локальный сервер, чтобы убедиться, что всё установилось без проблем.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo server</span><br></pre></td></tr></table></figure>
+
+<p>В консоли будет следующий вывод</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">INFO  Start processing</span><br><span class="line">INFO  Hexo is running at http://localhost:4000/. Press Ctrl+C to stop.</span><br></pre></td></tr></table></figure>
+
+<p>Всё просто и понятно, сайт будет доступен по адресу <a target="_blank" rel="noopener" href="http://localhost:4000/">http://localhost:4000/</a></p>
+<h3 id="Шаг-5-настройка-проекта"><a href="#Шаг-5-настройка-проекта" class="headerlink" title="Шаг 5 настройка проекта"></a>Шаг 5 настройка проекта</h3><h4 id="Шаг-5-1-создание-репозитория-для-сайта"><a href="#Шаг-5-1-создание-репозитория-для-сайта" class="headerlink" title="Шаг 5.1 создание репозитория для сайта"></a>Шаг 5.1 создание репозитория для сайта</h4><p>Блог будет крутиться на <code>github pages</code> или <code>bitbucket pages</code>, поэтому необходимо создать пустой проект с названием <code>&lt;username&gt;.github.io</code> или <code>&lt;username&gt;.bitbucket.io</code>. Насколько я понимаю, выбор зависит только от религиозных предпочтений <del>а ещё на bitbucket бесплатные приватные репозитории</del></p>
+<h4 id="Шаг-5-2-добавление-deploy-библиотеки"><a href="#Шаг-5-2-добавление-deploy-библиотеки" class="headerlink" title="Шаг 5.2 добавление deploy-библиотеки"></a>Шаг 5.2 добавление deploy-библиотеки</h4><p>Прямо из коробки hexo не умеет выкладывать посты через git. Научим его этому:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install --save hexo-deployer-git</span><br></pre></td></tr></table></figure>
+
+<h4 id="Шаг-5-3-изменение-файла-конфигурации"><a href="#Шаг-5-3-изменение-файла-конфигурации" class="headerlink" title="Шаг 5.3 изменение файла конфигурации"></a>Шаг 5.3 изменение файла конфигурации</h4><p>Настройка производится путём редактирования файла <code>my_awesome_blog/_config.yml</code>. Почти все возможные настройки уже прописаны в файле, остаётся только изменить их под свои нужды. Что стоит поменять:</p>
+<ol>
+<li>Весь блок <code>Site</code>, ибо там находится основная информация о сайте и авторе.</li>
+<li>Значение <code>url</code> заменяем на <code>https://&lt;username&gt;.bitbucket.io</code></li>
+<li>В <code>new_post_name</code> хранится путь до постов с использованием переменных. Синтаксис здесь достаточно ограничен, но можно использовать путь с субдирикториями (например <code>:year/:month/:title.md</code>)</li>
+<li><code>theme</code> - название темы оформления. Hexo будет искать папку с указанным названием в <code>my_awesome_blog/themes</code>. Темы можно найти на github или выбрать из <a target="_blank" rel="noopener" href="https://hexo.io/themes/">официального списка</a></li>
+<li>Блок <code>Deployment</code> настраиваем следующим образом: <figure class="highlight yaml"><figcaption><span>_config.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">deploy:</span></span><br><span class="line">  <span class="attr">type:</span> <span class="string">git</span></span><br><span class="line">  <span class="attr">repo:</span> <span class="string">git@bitbucket.org:&lt;username&gt;/&lt;username&gt;.bitbucket.io.git</span></span><br><span class="line">    </span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>На этом этапе вновь можно запустить локальный сервер и посмотреть, что ничего не сломано.</p>
+<h3 id="Шаг-6-создание-нового-поста"><a href="#Шаг-6-создание-нового-поста" class="headerlink" title="Шаг 6 создание нового поста"></a>Шаг 6 создание нового поста</h3><p>Опять же, есть два <del>стула</del> пути:</p>
+<ul>
+<li><p>С помощью команды hexo:</p>
+  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo new post &lt;title&gt;</span><br></pre></td></tr></table></figure></li>
+<li><p>Руками создать пост по пути, который описан в <code>_config.yml</code> в ключе <code>new_post_name</code></p>
+</li>
+</ul>
+<p>Сам пост может быть как чистым <code>markdown</code>, так и использовать переменные hexo, например заголовок поста:</p>
+<figure class="highlight markdown"><figcaption><span>new_post.md</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">---</span><br><span class="line">title: Some title</span><br><span class="line">date: YYYY-mm-dd HH:ii:ss</span><br><span class="line">categories:</span><br><span class="line"><span class="bullet">  -</span> post-category</span><br><span class="line"><span class="bullet">  -</span> sub-category</span><br><span class="line">tags:</span><br><span class="line"><span class="bullet">  -</span> tag 1</span><br><span class="line"><span class="section">  - tag 2</span></span><br><span class="line"><span class="section">---</span></span><br></pre></td></tr></table></figure>
+<p>После создания первого поста можно удалить дефолтный <code>my_awesome_blog/source/_post/hello-world.md</code></p>
+<h3 id="Шаг-7-deploy"><a href="#Шаг-7-deploy" class="headerlink" title="Шаг 7 deploy"></a>Шаг 7 deploy</h3><p>Проще не бывает:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">hexo clean</span><br><span class="line">hexo deploy</span><br></pre></td></tr></table></figure>
+<p>После этого заходим в репозиторий и видим там собственно сайт. Ну и в течение некоторого времени (возможно, даже сразу после развёртывания) блог станет доступен по адресу <code>https://&lt;username&gt;.bitbucket.io</code>.</p>
+<p>Вуаля, вы прекрастны и неотразимы и у вас есть свой блог на https без лишних растройств и вложений.</p>
+<p>Функционал блога можно расширять с помощью плагинов, а некоторые темы уже несут в себе множество дополнительных функций. Более подробнее можно прочитать в <a target="_blank" rel="noopener" href="https://hexo.io/docs/index.html">официальной документации</a>.</p>
+
+            
+
+
+        </div>
+    </div>
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br/>
+                
+    <a class="tag tag--primary tag--small t-none-link" href="/tags/javascript/" rel="tag">javascript</a> <a class="tag tag--primary tag--small t-none-link" href="/tags/markdown/" rel="tag">markdown</a> <a class="tag tag--primary tag--small t-none-link" href="/tags/programming/" rel="tag">programming</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2018/06/03/danganronpa/"
+                    data-tooltip="Серия Danganronpa"
+                    aria-label="PREVIOUS: Серия Danganronpa"
+                >
+                    
+                        <i class="fa fa-angle-left" aria-hidden="true"></i>
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                    </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2018/02/25/back-to-bed/"
+                    data-tooltip="Мнение Back To Bed"
+                    aria-label="NEXT: Мнение Back To Bed"
+                >
+                    
+                        <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                    </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a
+                class="post-action-btn btn btn--default btn-open-shareoptions"
+                href="#btn-open-shareoptions"
+                aria-label="Share this post"
+            >
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a
+                    class="post-action-btn btn btn--default"
+                    target="new" href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2018/04/30/blog-on-hexo/"
+                    title="Share on Twitter"
+                    aria-label="Share on Twitter"
+                >
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+        
+    </div>
+</article>
+
+
+
+                <footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2025 Daniel Savosin. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="2">
+                    <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2018/06/03/danganronpa/"
+                    data-tooltip="Серия Danganronpa"
+                    aria-label="PREVIOUS: Серия Danganronpa"
+                >
+                    
+                        <i class="fa fa-angle-left" aria-hidden="true"></i>
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                    </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2018/02/25/back-to-bed/"
+                    data-tooltip="Мнение Back To Bed"
+                    aria-label="NEXT: Мнение Back To Bed"
+                >
+                    
+                        <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                    </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a
+                class="post-action-btn btn btn--default btn-open-shareoptions"
+                href="#btn-open-shareoptions"
+                aria-label="Share this post"
+            >
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a
+                    class="post-action-btn btn btn--default"
+                    target="new" href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2018/04/30/blog-on-hexo/"
+                    title="Share on Twitter"
+                    aria-label="Share on Twitter"
+                >
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="2">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a
+                        class="share-option-btn"
+                        target="new"
+                        href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2018/04/30/blog-on-hexo/"
+                        aria-label="Share on Twitter"
+                    >
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+        
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+        
+            <h4 id="about-card-name">Daniel Savosin</h4>
+        
+            <div id="about-card-bio"><p>blog about something and nothing</p>
+</div>
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br/>
+                <p>backend developer</p>
+
+            </div>
+        
+        
+            <div id="about-card-location">
+                <i class="fa fa-map-marker-alt"></i>
+                <br/>
+                Kemerovo, Russia
+            </div>
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/solid-color-image.png');"></div>
+        <!--SCRIPTS-->
+
+<script src="/assets/js/script.min.js"></script>
+
+<!--SCRIPTS END-->
+
+
+    
+
+
+
+
+    </body>
+</html>

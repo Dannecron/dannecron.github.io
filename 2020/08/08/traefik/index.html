@@ -1,0 +1,666 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="generator" content="SAO-blog">
+    <title>Использование traefik reverse proxy для упрощения локальной разработки множества web-сервисов - SAO-blog</title>
+    <meta name="author" content="Daniel Savosin">
+    
+    
+        <link rel="icon" href="https://dannecron.github.io/assets/favicon.ico">
+    
+    
+        
+            <link rel="alternate" type="application/atom+xml" title="RSS" href="/atom.xml">
+        
+    
+    <script type="application/ld+json">{"@context":"http://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Daniel Savosin","sameAs":["https://dannecron.ru","https://steamcommunity.com/id/dannc","https://myanimelist.net/profile/DanNC","https://www.last.fm/ru/user/DanNecron"],"image":"avatar.png"},"articleBody":"Это небольшой пересказ с примерами конфигураций моего небольшого и спонтанного “воркшопа” про то, как я организовал своё локальное окружение для одновременной разработки n-ного количества web-сервисов.\n\n\nПредисловиеПару лет назад, когда я только освоился с технологией docker, у меня был такой подход, что каждый сервис, с которым мне приходится работать через браузер или http client, занимает определённый порт на localhost. Это было больно по нескольким причинам:\n\nНеобходимо точно помнить какие порты уже заняты, да ещё и помнить какой сервис занимает какой порт.\nДля сайтов, работающих по доменным именам, в основном приходилось делать дополнительные записи в файл hosts.\n\nВсё это выливалось в постоянные телодвижения по конфигурации не только когда приходится настраивать окружение на свежеустановленной системе, но и даже при работе на системе, где уже всё настроено.\nДа, это не так критично, но всё-равно тратится время. Поэтому в конечном итоге я начал искать пути решения этой проблемы. Поиск по сайтам в google и в ответах на stackoverflow приносил мало результатов. Решения в основном заключались в настройке локального dns-сервера и статической или динамической его конфигурации. Решения эти были довольно сложными в реализации, да и ещё не было понимания, как это повлияет на ОС.\nТак я и сидел, прокидывая порты на хост, решая конфликты и вспоминая четырёхзначные числа. Пока я не нашёл traefik, который позиционирует себя как “продвинутый HTTP reverse proxy и load balancer”. Первая часть меня зацепила, и, почитав документацию, я пришёл к выводу, что это идеальное решение проблемы, описанной выше.\nИспользование traefikЯ не буду вдаваться в глубокий разбор технологии реверсивного проксирования или самого traefik, просто расскажу, как конкретно он помогает в разработке и почему это удобно.\nПервым шагом будет запуск traefik. Для простоты (а именно это приоритет в локальной разработке) всё буду делать через docker-compose и docker-compose.yml файлы. Таким образом, выделим директорию где-то на диске и начнём. У меня это директория ~/code/libs. Создаём внутри неё новую директорию traefik.\n1234$ cd ~/code/libs$ mkdir traefik$ cd traefik$ touch docker-compose.yml\n\nПерейдя туда, начинаем описывать конфигурацию стека из одного сервиса:\ntraefik/docker-compose.yml1234567891011version: &#x27;3.7&#x27;services:  traefik:    image: traefik:2.2.8    command: --api.insecure=true --providers.docker --providers.docker.network=traefik_default --providers.docker.exposedByDefault=false    ports:      - 80:80      - 8080:8080    volumes:      - /var/run/docker.sock:/var/run/docker.sock:ro\n\nНемного о конфигурации. Порт 80 используется для непосредственных запросов в сервисы через traefik. На порту 8080 располагается небольшой dashboard с небольшим количеством информации для мониторинга. Том с сокетом докера необходимо добавить в контейнер, иначе traefik не сможет использовать провайдер докера. И немного по ключу command:\n\n--api.insecure=true включаем доступ до dashboard\n--providers.docker включаем провайдер docker\n--providers.docker.network=traefik_default говорим traefik использовать только его дефолтную сеть для поиска сервисов, готовых к взаимодействию\n--providers.docker.exposedByDefault=false данный флаг отключает автоматическое подключение всех контейнеров к traefik. В противном случае, traefik будет пытаться создать прокси до всех сервисов, у которых открыт хотя бы один порт.\n\nЗапускаем стек:\n1$ docker-compose up --build -d\n\nИ проверим, что всё запустилось, перейдя в браузере по http://localhost:8080. Отобразится такая страница с dashboard.\n\n\nСледующим шагом будет запуск какого-нибудь сервиса с web-интерфейсом. Для примера я взял AWS-S3 совместимое хранилище minio. Рядом с директорией traefik создадим директорию minioс файлом docker-compose.yml внутри:\n1234$ cd ..$ mkdir minio$ cd minio$ touch docker-compose.yml\n\nБазовая конфигурация этого сервиса через docker-compose будет выглядеть следующим образом:\nminio/docker-compose.yml12345678910111213version: &#x27;3.7&#x27;services:  minio:    image: minio/minio:RELEASE.2020-08-07T01-23-07Z    expose:      - 9000    environment:      MINIO_ACCESS_KEY: &quot;foobarbaz1234&quot;      MINIO_SECRET_KEY: &quot;secret1234&quot;    command: minio --compat server /data    volumes:      - ./data:/data\n\nТеперь необходимо сделать так, чтобы traefik и minio смогли общаться между собой. Для этого в конец minio/docker-compose.yml добавляем сеть traefik_default как внешнюю. И сразу же скажем сервису minio использовать новую сеть. Конфигурация теперь будет иметь вид: \nminio/docker-compose.yml1234567891011121314151617181920version: &#x27;3.7&#x27;services:  minio:    image: minio/minio:RELEASE.2020-08-07T01-23-07Z    expose:      - 9000    environment:      MINIO_ACCESS_KEY: &quot;foobarbaz1234&quot;      MINIO_SECRET_KEY: &quot;secret1234&quot;    command: minio --compat server /data    volumes:      - ./data:/data    networks:      - proxy # &lt;- добавили внешнюю сеть в сервисnetworks:  proxy:    external:      name: traefik_default # &lt;- объявили внешнюю сеть\n\nНу и наконец, собственно магия traefik. В сервис необходимо добавить три лейбла:- traefik.enable=true, чтобы сервис был включён в список конечных точек проксирования.1traefik.http.routers.&lt;serviceName&gt;.rule=Host(`&lt;hostName&gt;.docker.localhost`)\nгде `&lt;serviceName&gt;` нужно заменить на название сервиса, оно не обязательно должно совпадать с названием в `docker-compose.yml`, `&lt;hostName&gt;` нужно заменить на валидный поддомен. Валидность заключается в соблюдении правил построении доменных имён. \n\n\ntraefik.http.services.&lt;serviceName&gt;.loadbalancer.server.port=&lt;port&gt; обязательно необходимо добавлять, если сервис слушает порт отличный от 80.\n\nЗаключительный вид файла minio/docker-compose.yml:\nminio/docker-compose.yml123456789101112131415161718192021222324version: &#x27;3.7&#x27;services:  minio:    image: minio/minio:RELEASE.2020-08-07T01-23-07Z    expose:      - 9000    environment:      MINIO_ACCESS_KEY: &quot;foobarbaz1234&quot;      MINIO_SECRET_KEY: &quot;secret1234&quot;    command: minio --compat server /data    volumes:      - ./data:/data    networks:      - proxy    labels:      - &quot;traefik.enable=true&quot;      - &quot;traefik.http.routers.minio.rule=Host(`minio.docker.localhost`)&quot;      - &quot;traefik.http.services.minio.loadbalancer.server.port=9000&quot;networks:  proxy:    external:      name: traefik_default\n\nЗапустим контейнер с minio\n1$ docker-compose up --build -d\n\nТеперь достаточно перейти по url http://minio.docker.localhost и убедиться, что всё работает.\n\n\nВот таким образом можно без каких-либо проблем задавать доступность сервисов по доменному имени в домене *.docker.localhost на локальной машине. Дополнительно traefik предоставляет гибкую настройку множества параметров, в том числе и https, а также поддерживает работу не только с обычными контейнерами docker, запускаемыми через docker run или docker-compose, но и docker swarm, и kubernetes.\n","dateCreated":"2020-08-08T14:35:00+07:00","dateModified":"2025-04-18T08:21:19+07:00","datePublished":"2020-08-08T14:35:00+07:00","description":"Это небольшой пересказ с примерами конфигураций моего небольшого и спонтанного “воркшопа” про то, как я организовал своё локальное окружение для одновременной разработки n-ного количества web-сервисов.","headline":"Использование traefik reverse proxy для упрощения локальной разработки множества web-сервисов","image":[],"mainEntityOfPage":{"@type":"WebPage","@id":"https://dannecron.github.io/2020/08/08/traefik/"},"publisher":{"@type":"Organization","name":"Daniel Savosin","sameAs":["https://dannecron.ru","https://steamcommunity.com/id/dannc","https://myanimelist.net/profile/DanNC","https://www.last.fm/ru/user/DanNecron"],"image":"avatar.png","logo":{"@type":"ImageObject","url":"avatar.png"}},"url":"https://dannecron.github.io/2020/08/08/traefik/","keywords":"programming, docker, traefik, minio"}</script>
+    <meta name="description" content="Это небольшой пересказ с примерами конфигураций моего небольшого и спонтанного “воркшопа” про то, как я организовал своё локальное окружение для одновременной разработки n-ного количества web-сервисов">
+<meta property="og:type" content="blog">
+<meta property="og:title" content="Использование traefik reverse proxy для упрощения локальной разработки множества web-сервисов">
+<meta property="og:url" content="https://dannecron.github.io/2020/08/08/traefik/index.html">
+<meta property="og:site_name" content="SAO-blog">
+<meta property="og:description" content="Это небольшой пересказ с примерами конфигураций моего небольшого и спонтанного “воркшопа” про то, как я организовал своё локальное окружение для одновременной разработки n-ного количества web-сервисов">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://dannecron.github.io/assets/20200808/dashboard.png">
+<meta property="og:image" content="https://dannecron.github.io/assets/20200808/minio.docker.localhost.png">
+<meta property="article:published_time" content="2020-08-08T07:35:00.000Z">
+<meta property="article:modified_time" content="2025-04-18T01:21:19.997Z">
+<meta property="article:author" content="Daniel Savosin">
+<meta property="article:tag" content="programming">
+<meta property="article:tag" content="docker">
+<meta property="article:tag" content="traefik">
+<meta property="article:tag" content="minio">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://dannecron.github.io/assets/20200808/dashboard.png">
+    
+    
+        
+    
+    
+        <meta property="og:image" content="https://dannecron.github.io/assets/avatar.png"/>
+    
+    
+    
+    
+    <!--STYLES-->
+    
+<link rel="stylesheet" href="/assets/css/style.min.css">
+
+    <!--STYLES END-->
+    
+
+    
+
+    
+        
+    
+<style type="text/css">
+.spoiler {
+  display: inline-flex;
+}
+p.spoiler {
+  display: flex;
+}
+.spoiler a {
+  pointer-events: none;
+}
+.spoiler-blur, .spoiler-blur > * {
+  transition: text-shadow .5s ease;
+}
+.spoiler .spoiler-blur, .spoiler .spoiler-blur > * {
+  color: rgba(0, 0, 0, 0);
+  background-color: rgba(0, 0, 0, 0);
+  text-shadow: 0 0 10px grey;
+  cursor: pointer;
+}
+.spoiler .spoiler-blur:hover, .spoiler .spoiler-blur:hover > * {
+  text-shadow: 0 0 5px grey;
+}
+.spoiler-box, .spoiler-box > * {
+  transition: color .5s ease,
+  background-color .5s ease;
+}
+.spoiler .spoiler-box, .spoiler .spoiler-box > * {
+  color: black;
+  background-color: black;
+  text-shadow: none;
+}</style></head>
+
+    <body>
+        <div id="blog">
+            <!-- Define author's picture -->
+
+
+    
+        
+            
+        
+    
+
+<header id="header" data-behavior="2">
+    <i id="btn-open-sidebar" class="fa fa-lg fa-bars"></i>
+    <div class="header-title">
+        <a
+            class="header-title-link"
+            href="/"
+            aria-label=""
+        >
+            SAO-blog
+        </a>
+    </div>
+    
+        
+            <a
+                class="header-right-picture "
+                href="#about"
+                aria-label="Open the link: /#about"
+            >
+        
+        
+            <img class="header-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+        
+        </a>
+    
+</header>
+
+            <!-- Define author's picture -->
+
+
+
+        
+    
+
+<nav id="sidebar" data-behavior="2">
+    <div class="sidebar-container">
+        
+            <div class="sidebar-profile">
+                <a
+                    href="/#about"
+                    aria-label="Read more about the author"
+                >
+                    <img class="sidebar-profile-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+                </a>
+                <h4 class="sidebar-profile-name">Daniel Savosin</h4>
+                
+                    <h5 class="sidebar-profile-bio"><p>blog about something and nothing</p>
+</h5>
+                
+            </div>
+        
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/"
+                            
+                            rel="noopener"
+                            title="Home"
+                        >
+                        <i class="sidebar-button-icon fa fa-home" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Home</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-categories"
+                            
+                            rel="noopener"
+                            title="Categories"
+                        >
+                        <i class="sidebar-button-icon fa fa-bookmark" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Categories</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-tags"
+                            
+                            rel="noopener"
+                            title="Tags"
+                        >
+                        <i class="sidebar-button-icon fa fa-tags" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Tags</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/all-archives"
+                            
+                            rel="noopener"
+                            title="Archives"
+                        >
+                        <i class="sidebar-button-icon fa fa-archive" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Archives</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/about"
+                            
+                            rel="noopener"
+                            title="About"
+                        >
+                        <i class="sidebar-button-icon fa fa-question" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">About</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://dannecron.ru"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="littlelink"
+                        >
+                        <i class="sidebar-button-icon fas fa-share-alt" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">littlelink</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://steamcommunity.com/id/dannc"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="Steam"
+                        >
+                        <i class="sidebar-button-icon fab fa-steam" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">Steam</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://myanimelist.net/profile/DanNC"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="MyAnimeList"
+                        >
+                        <i class="sidebar-button-icon fas fa-film" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">MyAnimeList</span>
+                    </a>
+            </li>
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="https://www.last.fm/ru/user/DanNecron"
+                            
+                                target="_blank"
+                            
+                            rel="noopener"
+                            title="LastFM"
+                        >
+                        <i class="sidebar-button-icon fas fa-headphones-alt" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">LastFM</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+            <ul class="sidebar-buttons">
+            
+                <li class="sidebar-button">
+                    
+                        <a
+                            class="sidebar-button-link "
+                            href="/atom.xml"
+                            
+                            rel="noopener"
+                            title="RSS"
+                        >
+                        <i class="sidebar-button-icon fa fa-rss" aria-hidden="true"></i>
+                        <span class="sidebar-button-desc">RSS</span>
+                    </a>
+            </li>
+            
+        </ul>
+        
+    </div>
+</nav>
+
+            
+            <div id="main" data-behavior="2"
+                 class="
+                        hasCoverMetaIn
+                        ">
+                
+<article class="post">
+    
+    
+        <div class="post-header main-content-wrap text-left">
+    
+        <h1 class="post-title">
+            Использование traefik reverse proxy для упрощения локальной разработки множества web-сервисов
+        </h1>
+    
+    
+        <div class="post-meta">
+    <time datetime="2020-08-08T14:35:00+07:00">
+	
+		    2020-08-08
+    	
+    </time>
+    
+        <span>in </span>
+        
+    <a class="category-link" href="/categories/programming/">programming</a>
+
+
+    
+</div>
+
+    
+</div>
+
+    
+    <div class="post-content markdown">
+        <div class="main-content-wrap">
+            <p>Это небольшой пересказ с примерами конфигураций моего небольшого и спонтанного “воркшопа” про то, как я организовал своё локальное окружение для одновременной разработки n-ного количества web-сервисов.</p>
+<span id="more"></span>
+
+<h3 id="Предисловие"><a href="#Предисловие" class="headerlink" title="Предисловие"></a>Предисловие</h3><p>Пару лет назад, когда я только освоился с технологией docker, у меня был такой подход, что каждый сервис, с которым мне приходится работать через браузер или http client, занимает определённый порт на localhost. Это было больно по нескольким причинам:</p>
+<ul>
+<li>Необходимо точно помнить какие порты уже заняты, да ещё и помнить какой сервис занимает какой порт.</li>
+<li>Для сайтов, работающих по доменным именам, в основном приходилось делать дополнительные записи в файл hosts.</li>
+</ul>
+<p>Всё это выливалось в постоянные телодвижения по конфигурации не только когда приходится настраивать окружение на свежеустановленной системе, но и даже при работе на системе, где уже всё настроено.</p>
+<p>Да, это не так критично, но всё-равно тратится время. Поэтому в конечном итоге я начал искать пути решения этой проблемы. Поиск по сайтам в google и в ответах на stackoverflow приносил мало результатов. Решения в основном заключались в настройке локального dns-сервера и статической или динамической его конфигурации. Решения эти были довольно сложными в реализации, да и ещё не было понимания, как это повлияет на ОС.</p>
+<p>Так я и сидел, прокидывая порты на хост, решая конфликты и вспоминая четырёхзначные числа. Пока я не нашёл <a target="_blank" rel="noopener" href="https://github.com/containous/traefik"><code>traefik</code></a>, который позиционирует себя как “продвинутый HTTP reverse proxy и load balancer”. Первая часть меня зацепила, и, почитав документацию, я пришёл к выводу, что это идеальное решение проблемы, описанной выше.</p>
+<h3 id="Использование-traefik"><a href="#Использование-traefik" class="headerlink" title="Использование traefik"></a>Использование traefik</h3><p>Я не буду вдаваться в глубокий разбор технологии реверсивного проксирования или самого traefik, просто расскажу, как конкретно он помогает в разработке и почему это удобно.</p>
+<p>Первым шагом будет запуск traefik. Для простоты (а именно это приоритет в локальной разработке) всё буду делать через docker-compose и docker-compose.yml файлы. Таким образом, выделим директорию где-то на диске и начнём. У меня это директория <code>~/code/libs</code>. Создаём внутри неё новую директорию <code>traefik</code>.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> ~/code/libs</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">mkdir</span> traefik</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> traefik</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">touch</span> docker-compose.yml</span></span><br></pre></td></tr></table></figure>
+
+<p>Перейдя туда, начинаем описывать конфигурацию стека из одного сервиса:</p>
+<figure class="highlight yaml"><figcaption><span>traefik/docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;3.7&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">traefik:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">traefik:2.2.8</span></span><br><span class="line">    <span class="attr">command:</span> <span class="string">--api.insecure=true</span> <span class="string">--providers.docker</span> <span class="string">--providers.docker.network=traefik_default</span> <span class="string">--providers.docker.exposedByDefault=false</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">80</span><span class="string">:80</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">8080</span><span class="string">:8080</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/var/run/docker.sock:/var/run/docker.sock:ro</span></span><br></pre></td></tr></table></figure>
+
+<p>Немного о конфигурации. Порт <code>80</code> используется для непосредственных запросов в сервисы через traefik. На порту <code>8080</code> располагается небольшой dashboard с небольшим количеством информации для мониторинга. Том с сокетом докера необходимо добавить в контейнер, иначе traefik не сможет использовать провайдер докера. И немного по ключу <code>command</code>:</p>
+<ul>
+<li><code>--api.insecure=true</code> включаем доступ до dashboard</li>
+<li><code>--providers.docker</code> включаем провайдер docker</li>
+<li><code>--providers.docker.network=traefik_default</code> говорим traefik использовать только его дефолтную сеть для поиска сервисов, готовых к взаимодействию</li>
+<li><code>--providers.docker.exposedByDefault=false</code> данный флаг отключает автоматическое подключение всех контейнеров к traefik. В противном случае, traefik будет пытаться создать прокси до всех сервисов, у которых открыт хотя бы один порт.</li>
+</ul>
+<p>Запускаем стек:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">docker-compose up --build -d</span></span><br></pre></td></tr></table></figure>
+
+<p>И проверим, что всё запустилось, перейдя в браузере по <code>http://localhost:8080</code>. Отобразится такая страница с dashboard.</p>
+<div class="figure center" style="width:;"><a class="fancybox" href="/assets/20200808/dashboard.png" title="" data-caption="" data-fancybox="default"><img class="fig-img" src="/assets/20200808/dashboard.png" alt=""></a></div>
+
+<p>Следующим шагом будет запуск какого-нибудь сервиса с web-интерфейсом. Для примера я взял AWS-S3 совместимое хранилище <a target="_blank" rel="noopener" href="https://github.com/minio/minio">minio</a>. Рядом с директорией <code>traefik</code> создадим директорию <code>minio</code>с файлом <code>docker-compose.yml</code> внутри:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> ..</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">mkdir</span> minio</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cd</span> minio</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">touch</span> docker-compose.yml</span></span><br></pre></td></tr></table></figure>
+
+<p>Базовая конфигурация этого сервиса через <code>docker-compose</code> будет выглядеть следующим образом:</p>
+<figure class="highlight yaml"><figcaption><span>minio/docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;3.7&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">minio:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">minio/minio:RELEASE.2020-08-07T01-23-07Z</span></span><br><span class="line">    <span class="attr">expose:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">9000</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="attr">MINIO_ACCESS_KEY:</span> <span class="string">&quot;foobarbaz1234&quot;</span></span><br><span class="line">      <span class="attr">MINIO_SECRET_KEY:</span> <span class="string">&quot;secret1234&quot;</span></span><br><span class="line">    <span class="attr">command:</span> <span class="string">minio</span> <span class="string">--compat</span> <span class="string">server</span> <span class="string">/data</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./data:/data</span></span><br></pre></td></tr></table></figure>
+
+<p>Теперь необходимо сделать так, чтобы <code>traefik</code> и <code>minio</code> смогли общаться между собой. Для этого в конец <code>minio/docker-compose.yml</code> добавляем сеть <code>traefik_default</code> как внешнюю. И сразу же скажем сервису <code>minio</code> использовать новую сеть. Конфигурация теперь будет иметь вид: </p>
+<figure class="highlight yaml"><figcaption><span>minio/docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;3.7&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">minio:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">minio/minio:RELEASE.2020-08-07T01-23-07Z</span></span><br><span class="line">    <span class="attr">expose:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">9000</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="attr">MINIO_ACCESS_KEY:</span> <span class="string">&quot;foobarbaz1234&quot;</span></span><br><span class="line">      <span class="attr">MINIO_SECRET_KEY:</span> <span class="string">&quot;secret1234&quot;</span></span><br><span class="line">    <span class="attr">command:</span> <span class="string">minio</span> <span class="string">--compat</span> <span class="string">server</span> <span class="string">/data</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./data:/data</span></span><br><span class="line">    <span class="attr">networks:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">proxy</span> <span class="comment"># &lt;- добавили внешнюю сеть в сервис</span></span><br><span class="line"></span><br><span class="line"><span class="attr">networks:</span></span><br><span class="line">  <span class="attr">proxy:</span></span><br><span class="line">    <span class="attr">external:</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">traefik_default</span> <span class="comment"># &lt;- объявили внешнюю сеть</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="Ну-и-наконец-собственно-магия-traefik-В-сервис-необходимо-добавить-три-лейбла-traefik-enable-true-чтобы-сервис-был-включён-в-список-конечных-точек-проксирования"><a href="#Ну-и-наконец-собственно-магия-traefik-В-сервис-необходимо-добавить-три-лейбла-traefik-enable-true-чтобы-сервис-был-включён-в-список-конечных-точек-проксирования" class="headerlink" title="Ну и наконец, собственно магия traefik. В сервис необходимо добавить три лейбла:- traefik.enable=true, чтобы сервис был включён в список конечных точек проксирования."></a>Ну и наконец, собственно магия traefik. В сервис необходимо добавить три лейбла:<br>- <code>traefik.enable=true</code>, чтобы сервис был включён в список конечных точек проксирования.</h2><pre><code><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">traefik.http.routers.&lt;serviceName&gt;.rule=Host(`&lt;hostName&gt;.docker.localhost`)</span><br></pre></td></tr></table></figure>
+где `&lt;serviceName&gt;` нужно заменить на название сервиса, оно не обязательно должно совпадать с названием в `docker-compose.yml`, `&lt;hostName&gt;` нужно заменить на валидный поддомен. Валидность заключается в соблюдении правил построении доменных имён. 
+</code></pre>
+<ul>
+<li><code>traefik.http.services.&lt;serviceName&gt;.loadbalancer.server.port=&lt;port&gt;</code> обязательно необходимо добавлять, если сервис слушает порт отличный от 80.</li>
+</ul>
+<p>Заключительный вид файла <code>minio/docker-compose.yml</code>:</p>
+<figure class="highlight yaml"><figcaption><span>minio/docker-compose.yml</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;3.7&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line">  <span class="attr">minio:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">minio/minio:RELEASE.2020-08-07T01-23-07Z</span></span><br><span class="line">    <span class="attr">expose:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="number">9000</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="attr">MINIO_ACCESS_KEY:</span> <span class="string">&quot;foobarbaz1234&quot;</span></span><br><span class="line">      <span class="attr">MINIO_SECRET_KEY:</span> <span class="string">&quot;secret1234&quot;</span></span><br><span class="line">    <span class="attr">command:</span> <span class="string">minio</span> <span class="string">--compat</span> <span class="string">server</span> <span class="string">/data</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">./data:/data</span></span><br><span class="line">    <span class="attr">networks:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">proxy</span></span><br><span class="line">    <span class="attr">labels:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;traefik.enable=true&quot;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;traefik.http.routers.minio.rule=Host(`minio.docker.localhost`)&quot;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;traefik.http.services.minio.loadbalancer.server.port=9000&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="attr">networks:</span></span><br><span class="line">  <span class="attr">proxy:</span></span><br><span class="line">    <span class="attr">external:</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">traefik_default</span></span><br></pre></td></tr></table></figure>
+
+<p>Запустим контейнер с <code>minio</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">docker-compose up --build -d</span></span><br></pre></td></tr></table></figure>
+
+<p>Теперь достаточно перейти по url <code>http://minio.docker.localhost</code> и убедиться, что всё работает.</p>
+<div class="figure center" style="width:;"><a class="fancybox" href="/assets/20200808/minio.docker.localhost.png" title="" data-caption="" data-fancybox="default"><img class="fig-img" src="/assets/20200808/minio.docker.localhost.png" alt=""></a></div>
+
+<p>Вот таким образом можно без каких-либо проблем задавать доступность сервисов по доменному имени в домене <code>*.docker.localhost</code> на локальной машине. Дополнительно traefik предоставляет гибкую настройку множества параметров, в том числе и https, а также поддерживает работу не только с обычными контейнерами <code>docker</code>, запускаемыми через <code>docker run</code> или <code>docker-compose</code>, но и <code>docker swarm</code>, и <code>kubernetes</code>.</p>
+
+            
+
+
+        </div>
+    </div>
+    <div id="post-footer" class="post-footer main-content-wrap">
+        
+            <div class="post-footer-tags">
+                <span class="text-color-light text-small">TAGGED IN</span><br/>
+                
+    <a class="tag tag--primary tag--small t-none-link" href="/tags/docker/" rel="tag">docker</a> <a class="tag tag--primary tag--small t-none-link" href="/tags/minio/" rel="tag">minio</a> <a class="tag tag--primary tag--small t-none-link" href="/tags/programming/" rel="tag">programming</a> <a class="tag tag--primary tag--small t-none-link" href="/tags/traefik/" rel="tag">traefik</a>
+
+            </div>
+        
+        
+            <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2020/09/07/bloodstained/"
+                    data-tooltip="Мнение Bloodstained Ritual of the Night"
+                    aria-label="PREVIOUS: Мнение Bloodstained Ritual of the Night"
+                >
+                    
+                        <i class="fa fa-angle-left" aria-hidden="true"></i>
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                    </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2020/04/07/gibbous/"
+                    data-tooltip="Мнение Gibbous - A Cthulhu Adventure"
+                    aria-label="NEXT: Мнение Gibbous - A Cthulhu Adventure"
+                >
+                    
+                        <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                    </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a
+                class="post-action-btn btn btn--default btn-open-shareoptions"
+                href="#btn-open-shareoptions"
+                aria-label="Share this post"
+            >
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a
+                    class="post-action-btn btn btn--default"
+                    target="new" href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2020/08/08/traefik/"
+                    title="Share on Twitter"
+                    aria-label="Share on Twitter"
+                >
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+        
+        
+            
+        
+    </div>
+</article>
+
+
+
+                <footer id="footer" class="main-content-wrap">
+    <span class="copyrights">
+        Copyrights &copy; 2025 Daniel Savosin. All Rights Reserved.
+    </span>
+</footer>
+
+            </div>
+            
+                <div id="bottom-bar" class="post-bottom-bar" data-behavior="2">
+                    <div class="post-actions-wrap">
+    <nav>
+        <ul class="post-actions post-action-nav">
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2020/09/07/bloodstained/"
+                    data-tooltip="Мнение Bloodstained Ritual of the Night"
+                    aria-label="PREVIOUS: Мнение Bloodstained Ritual of the Night"
+                >
+                    
+                        <i class="fa fa-angle-left" aria-hidden="true"></i>
+                        <span class="hide-xs hide-sm text-small icon-ml">PREVIOUS</span>
+                    </a>
+            </li>
+            <li class="post-action">
+                
+                    
+                <a
+                    class="post-action-btn btn btn--default tooltip--top"
+                    href="/2020/04/07/gibbous/"
+                    data-tooltip="Мнение Gibbous - A Cthulhu Adventure"
+                    aria-label="NEXT: Мнение Gibbous - A Cthulhu Adventure"
+                >
+                    
+                        <span class="hide-xs hide-sm text-small icon-mr">NEXT</span>
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                    </a>
+            </li>
+        </ul>
+    </nav>
+    <ul class="post-actions post-action-share">
+        <li class="post-action hide-lg hide-md hide-sm">
+            <a
+                class="post-action-btn btn btn--default btn-open-shareoptions"
+                href="#btn-open-shareoptions"
+                aria-label="Share this post"
+            >
+                <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </a>
+        </li>
+        
+            
+            
+            <li class="post-action hide-xs">
+                <a
+                    class="post-action-btn btn btn--default"
+                    target="new" href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2020/08/08/traefik/"
+                    title="Share on Twitter"
+                    aria-label="Share on Twitter"
+                >
+                    <i class="fab fa-twitter" aria-hidden="true"></i>
+                </a>
+            </li>
+        
+        
+            
+        
+        <li class="post-action">
+            
+                <a class="post-action-btn btn btn--default" href="#" aria-label="Back to top">
+            
+                <i class="fa fa-list" aria-hidden="true"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+
+                </div>
+                
+    <div id="share-options-bar" class="share-options-bar" data-behavior="2">
+        <i id="btn-close-shareoptions" class="fa fa-times"></i>
+        <ul class="share-options">
+            
+                
+                
+                <li class="share-option">
+                    <a
+                        class="share-option-btn"
+                        target="new"
+                        href="https://twitter.com/intent/tweet?text=https://dannecron.github.io/2020/08/08/traefik/"
+                        aria-label="Share on Twitter"
+                    >
+                        <i class="fab fa-twitter" aria-hidden="true"></i><span>Share on Twitter</span>
+                    </a>
+                </li>
+            
+        </ul>
+    </div>
+
+
+            
+        </div>
+        
+
+
+    
+        
+    
+
+<div id="about">
+    <div id="about-card">
+        <div id="about-btn-close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+            <img id="about-card-picture" src="/assets/avatar.png" alt="Author&#39;s picture"/>
+        
+            <h4 id="about-card-name">Daniel Savosin</h4>
+        
+            <div id="about-card-bio"><p>blog about something and nothing</p>
+</div>
+        
+        
+            <div id="about-card-job">
+                <i class="fa fa-briefcase"></i>
+                <br/>
+                <p>backend developer</p>
+
+            </div>
+        
+        
+            <div id="about-card-location">
+                <i class="fa fa-map-marker-alt"></i>
+                <br/>
+                Kemerovo, Russia
+            </div>
+        
+    </div>
+</div>
+
+        
+        
+<div id="cover" style="background-image:url('/assets/solid-color-image.png');"></div>
+        <!--SCRIPTS-->
+
+<script src="/assets/js/script.min.js"></script>
+
+<!--SCRIPTS END-->
+
+
+    
+
+
+
+
+    </body>
+</html>
